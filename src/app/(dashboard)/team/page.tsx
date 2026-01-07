@@ -81,15 +81,34 @@ export default function TeamPage() {
   async function handleSave(memberData: Partial<TeamMember>) {
     try {
       if (editingMember) {
+        // Bestaand teamlid updaten
         await dataApi.updateTeamMember(editingMember.id, memberData)
+      } else {
+        // Nieuw teamlid aanmaken via API (stuurt invite email)
+        const response = await fetch('/api/team/invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: memberData.name,
+            email: memberData.email,
+            role: memberData.role,
+          }),
+        })
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Kon teamlid niet aanmaken')
+        }
+
+        alert(`Uitnodiging verstuurd naar ${memberData.email}`)
       }
-      // Note: We don't have createTeamMember yet
       setIsModalOpen(false)
       setEditingMember(null)
       refetch()
     } catch (error) {
       console.error('Error saving member:', error)
-      alert('Kon teamlid niet opslaan')
+      alert(error instanceof Error ? error.message : 'Kon teamlid niet opslaan')
     }
   }
 
