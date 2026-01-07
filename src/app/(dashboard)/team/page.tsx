@@ -16,6 +16,7 @@ import {
   X,
   MoreVertical,
   Loader2,
+  KeyRound,
 } from 'lucide-react'
 import type { TeamMember } from '@/types/supabase'
 import type { UserRole } from '@/types/database'
@@ -73,6 +74,33 @@ export default function TeamPage() {
   function handleDelete(memberId: string) {
     if (confirm('Weet je zeker dat je dit teamlid wilt deactiveren?')) {
       handleToggleActive(memberId)
+    }
+    setMenuOpenId(null)
+  }
+
+  // Reset wachtwoord voor teamlid
+  async function handleResetPassword(email: string) {
+    if (!confirm(`Weet je zeker dat je een wachtwoord reset email wilt sturen naar ${email}?`)) {
+      return
+    }
+
+    try {
+      const response = await fetch('/api/team/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Kon wachtwoord reset niet versturen')
+      }
+
+      alert(`Wachtwoord reset email verstuurd naar ${email}`)
+    } catch (error) {
+      console.error('Reset password error:', error)
+      alert(error instanceof Error ? error.message : 'Er is een fout opgetreden')
     }
     setMenuOpenId(null)
   }
@@ -187,6 +215,7 @@ export default function TeamPage() {
           onEdit={handleEdit}
           onToggleActive={handleToggleActive}
           onDelete={handleDelete}
+          onResetPassword={handleResetPassword}
         />
 
         {/* Planners */}
@@ -200,6 +229,7 @@ export default function TeamPage() {
           onEdit={handleEdit}
           onToggleActive={handleToggleActive}
           onDelete={handleDelete}
+          onResetPassword={handleResetPassword}
         />
 
         {/* Monteurs */}
@@ -213,6 +243,7 @@ export default function TeamPage() {
           onEdit={handleEdit}
           onToggleActive={handleToggleActive}
           onDelete={handleDelete}
+          onResetPassword={handleResetPassword}
         />
       </div>
 
@@ -267,6 +298,7 @@ function RoleSection({
   onEdit,
   onToggleActive,
   onDelete,
+  onResetPassword,
 }: {
   title: string
   description: string
@@ -277,6 +309,7 @@ function RoleSection({
   onEdit: (member: TeamMember) => void
   onToggleActive: (id: string) => void
   onDelete: (id: string) => void
+  onResetPassword: (email: string) => void
 }) {
   if (members.length === 0) return null
 
@@ -299,6 +332,7 @@ function RoleSection({
             onEdit={() => onEdit(member)}
             onToggleActive={() => onToggleActive(member.id)}
             onDelete={() => onDelete(member.id)}
+            onResetPassword={() => onResetPassword(member.email)}
           />
         ))}
       </div>
@@ -315,6 +349,7 @@ function TeamMemberRow({
   onEdit,
   onToggleActive,
   onDelete,
+  onResetPassword,
 }: {
   member: TeamMember
   installationCount: number
@@ -323,6 +358,7 @@ function TeamMemberRow({
   onEdit: () => void
   onToggleActive: () => void
   onDelete: () => void
+  onResetPassword: () => void
 }) {
   return (
     <div
@@ -411,6 +447,13 @@ function TeamMemberRow({
                     Activeren
                   </>
                 )}
+              </button>
+              <button
+                onClick={onResetPassword}
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <KeyRound className="h-4 w-4" />
+                Reset wachtwoord
               </button>
               <hr className="my-1" />
               <button
