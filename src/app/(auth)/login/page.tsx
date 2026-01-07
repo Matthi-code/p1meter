@@ -24,7 +24,30 @@ export default function LoginPage() {
     const result = await login(email, password)
 
     if (result.success) {
-      router.push('/')
+      // Redirect naar juiste pagina op basis van rol
+      // De useAuth hook update de user state, dus we moeten even wachten
+      // De middleware handelt de rest af
+      const supabase = getSupabaseClient()
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (session) {
+        const { data: teamMember } = await supabase
+          .from('team_members')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single()
+
+        const role = teamMember?.role || 'huiseigenaar'
+
+        // Redirect op basis van rol
+        if (role === 'huiseigenaar') {
+          router.push('/portal')
+        } else {
+          router.push('/dashboard')
+        }
+      } else {
+        router.push('/dashboard')
+      }
     } else {
       setError(result.error || 'Ongeldige inloggegevens')
     }

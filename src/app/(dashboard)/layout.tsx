@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/lib/auth'
 import { getRoleLabel } from '@/lib/utils'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Calendar,
   Users,
@@ -31,7 +31,7 @@ type NavItem = {
 
 const navItems: NavItem[] = [
   {
-    href: '/',
+    href: '/dashboard',
     label: 'Dashboard',
     icon: <LayoutDashboard className="h-5 w-5" />,
   },
@@ -69,8 +69,32 @@ type DashboardLayoutProps = {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname()
-  const { user, logout, hasRole } = useAuth()
+  const { user, logout, hasRole, isLoading } = useAuth()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  // Redirect naar login als niet ingelogd (fallback voor middleware)
+  useEffect(() => {
+    if (!isLoading && !user) {
+      window.location.href = '/login'
+    }
+  }, [user, isLoading])
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-slate-500">Laden...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Niet ingelogd
+  if (!user) {
+    return null
+  }
 
   // Filter nav items op rol
   const visibleNavItems = navItems.filter(
