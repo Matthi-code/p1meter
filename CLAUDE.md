@@ -28,3 +28,4 @@ This is a Next.js 16 application using the App Router with TypeScript and Tailwi
 - **Components**: Create in `src/components/` (not yet created)
 - **Server Components**: Default in App Router; add `'use client'` directive for client components
 - **Styling**: Use Tailwind CSS utility classes
+# Trigger redeploy Wed Jan  7 22:51:34 CET 2026
