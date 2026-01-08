@@ -1,12 +1,59 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { InstallationWithRelations } from '@/types/supabase'
 import { getStatusLabel, getStatusColor, formatDateTime } from '@/lib/utils'
-import { MapPin, User, Calendar, Clock } from 'lucide-react'
+import { MapPin, User, Calendar, Clock, Loader2 } from 'lucide-react'
+
+// Geocoding cache to avoid repeated API calls
+const geocodeCache = new Map<string, { lat: number; lng: number } | null>()
+
+// Geocode a Dutch address using PDOK Locatieserver API
+async function geocodeAddress(postalCode: string, houseNumber: string): Promise<{ lat: number; lng: number } | null> {
+  // Clean up postal code (remove spaces)
+  const cleanPostal = postalCode.replace(/\s/g, '').toUpperCase()
+  const cacheKey = `${cleanPostal}-${houseNumber}`
+
+  // Check cache first
+  if (geocodeCache.has(cacheKey)) {
+    return geocodeCache.get(cacheKey) || null
+  }
+
+  try {
+    // PDOK Locatieserver API - free Dutch geocoding
+    const query = `${cleanPostal} ${houseNumber}`
+    const response = await fetch(
+      `https://api.pdok.nl/bzk/locatieserver/search/v3_1/free?q=${encodeURIComponent(query)}&rows=1`
+    )
+
+    if (!response.ok) {
+      geocodeCache.set(cacheKey, null)
+      return null
+    }
+
+    const data = await response.json()
+
+    if (data.response?.docs?.[0]?.centroide_ll) {
+      // Parse "POINT(lng lat)" format
+      const match = data.response.docs[0].centroide_ll.match(/POINT\(([^ ]+) ([^)]+)\)/)
+      if (match) {
+        const result = { lat: parseFloat(match[2]), lng: parseFloat(match[1]) }
+        geocodeCache.set(cacheKey, result)
+        return result
+      }
+    }
+
+    geocodeCache.set(cacheKey, null)
+    return null
+  } catch (error) {
+    console.error('Geocoding error:', error)
+    geocodeCache.set(cacheKey, null)
+    return null
+  }
+}
 
 // Fix for default marker icons in Leaflet with webpack/Next.js
 const createCustomIcon = (status: string) => {
@@ -54,21 +101,28 @@ const createCustomIcon = (status: string) => {
 }
 
 // Component to fit bounds to markers
-function FitBounds({ installations }: { installations: InstallationWithRelations[] }) {
+function FitBounds({
+  installations,
+  getCoords
+}: {
+  installations: GeocodedInstallation[]
+  getCoords: (i: GeocodedInstallation) => [number, number]
+}) {
   const map = useMap()
 
   useEffect(() => {
     if (installations.length > 0) {
-      const bounds = L.latLngBounds(
-        installations
-          .filter((i) => i.customer?.latitude && i.customer?.longitude)
-          .map((i) => [i.customer!.latitude!, i.customer!.longitude!])
+      const validInstallations = installations.filter(
+        (i) => (i.customer?.latitude && i.customer?.longitude) || (i.geocodedLat && i.geocodedLng)
       )
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [50, 50] })
+      if (validInstallations.length > 0) {
+        const bounds = L.latLngBounds(validInstallations.map(getCoords))
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [50, 50] })
+        }
       }
     }
-  }, [installations, map])
+  }, [installations, map, getCoords])
 
   return null
 }
@@ -78,19 +132,88 @@ export type InstallationsMapProps = {
   onSelectInstallation?: (installation: InstallationWithRelations) => void
 }
 
+// Type for installation with geocoded coordinates
+type GeocodedInstallation = InstallationWithRelations & {
+  geocodedLat?: number
+  geocodedLng?: number
+}
+
 export default function InstallationsMap({
   installations,
   onSelectInstallation,
 }: InstallationsMapProps) {
   const [isMounted, setIsMounted] = useState(false)
+  const [geocodedInstallations, setGeocodedInstallations] = useState<GeocodedInstallation[]>([])
+  const [isGeocoding, setIsGeocoding] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  // Filter installations with valid coordinates
-  const mappableInstallations = installations.filter(
-    (i) => i.customer?.latitude && i.customer?.longitude
+  // Create a hash of installations to detect changes
+  const installationsHash = installations.map(i =>
+    `${i.id}-${i.customer?.postal_code}-${i.customer?.address}`
+  ).join('|')
+
+  // Geocode installations that don't have coordinates
+  useEffect(() => {
+    if (!installations.length) return
+
+    const geocodeAll = async () => {
+      setIsGeocoding(true)
+
+      const results: GeocodedInstallation[] = []
+
+      for (const installation of installations) {
+        // Skip if already has coordinates in DB
+        if (installation.customer?.latitude && installation.customer?.longitude) {
+          results.push(installation)
+          continue
+        }
+
+        // Try to geocode using postal_code and address (extract house number)
+        if (installation.customer?.postal_code && installation.customer?.address) {
+          // Extract house number from address (e.g., "Hoofdstraat 123" -> "123")
+          const houseNumberMatch = installation.customer.address.match(/\d+/)
+          const houseNumber = houseNumberMatch ? houseNumberMatch[0] : ''
+
+          if (houseNumber) {
+            const coords = await geocodeAddress(installation.customer.postal_code, houseNumber)
+            if (coords) {
+              results.push({
+                ...installation,
+                geocodedLat: coords.lat,
+                geocodedLng: coords.lng,
+              })
+              continue
+            }
+          }
+        }
+
+        // Add without coordinates
+        results.push(installation)
+      }
+
+      setGeocodedInstallations(results)
+      setIsGeocoding(false)
+    }
+
+    geocodeAll()
+  }, [installationsHash, installations])
+
+  // Helper to get coordinates
+  const getCoords = useCallback((i: GeocodedInstallation): [number, number] => {
+    if (i.customer?.latitude && i.customer?.longitude) {
+      return [i.customer.latitude, i.customer.longitude]
+    }
+    return [i.geocodedLat!, i.geocodedLng!]
+  }, [])
+
+  // Filter installations with valid coordinates (either from DB or geocoded)
+  const mappableInstallations = geocodedInstallations.filter(
+    (i) =>
+      (i.customer?.latitude && i.customer?.longitude) ||
+      (i.geocodedLat && i.geocodedLng)
   )
 
   // Calculate center (Netherlands center as default)
@@ -98,9 +221,9 @@ export default function InstallationsMap({
   const center: [number, number] =
     mappableInstallations.length > 0
       ? [
-          mappableInstallations.reduce((sum, i) => sum + (i.customer?.latitude || 0), 0) /
+          mappableInstallations.reduce((sum, i) => sum + getCoords(i)[0], 0) /
             mappableInstallations.length,
-          mappableInstallations.reduce((sum, i) => sum + (i.customer?.longitude || 0), 0) /
+          mappableInstallations.reduce((sum, i) => sum + getCoords(i)[1], 0) /
             mappableInstallations.length,
         ]
       : defaultCenter
@@ -126,12 +249,12 @@ export default function InstallationsMap({
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <FitBounds installations={mappableInstallations} />
+        <FitBounds installations={mappableInstallations} getCoords={getCoords} />
 
         {mappableInstallations.map((installation) => (
           <Marker
             key={installation.id}
-            position={[installation.customer!.latitude!, installation.customer!.longitude!]}
+            position={getCoords(installation)}
             icon={createCustomIcon(installation.status)}
             eventHandlers={{
               click: () => onSelectInstallation?.(installation),
@@ -201,9 +324,16 @@ export default function InstallationsMap({
 
       {/* Counter */}
       <div className="absolute top-4 right-4 bg-white/95 backdrop-blur-sm rounded-xl shadow-lg px-4 py-2 z-[1000]">
-        <p className="text-sm font-medium text-[var(--gray-900)]">
-          {mappableInstallations.length} locaties
-        </p>
+        {isGeocoding ? (
+          <div className="flex items-center gap-2 text-sm text-[var(--gray-600)]">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Adressen laden...
+          </div>
+        ) : (
+          <p className="text-sm font-medium text-[var(--gray-900)]">
+            {mappableInstallations.length} van {installations.length} locaties
+          </p>
+        )}
       </div>
     </div>
   )
