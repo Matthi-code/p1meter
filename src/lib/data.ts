@@ -5,9 +5,17 @@ import type {
   Task,
   TeamMember,
   SmartMeter,
+  IntakeForm,
+  CustomerPhoto,
+  Evaluation,
+  Issue,
   CustomerInsert,
   InstallationInsert,
   TaskInsert,
+  IntakeFormInsert,
+  CustomerPhotoInsert,
+  EvaluationInsert,
+  IssueInsert,
 } from '@/types/supabase'
 
 const supabase = getSupabaseClient()
@@ -408,4 +416,203 @@ export async function getDashboardStats() {
     pendingTasks: pendingTasks || 0,
     activeMonteurs: activeMonteurs || 0,
   }
+}
+
+// ============================================
+// Portal Functions
+// ============================================
+
+// Customer by Portal Token
+export async function getCustomerByToken(token: string) {
+  const { data, error } = await supabase
+    .from('customers')
+    .select('*')
+    .eq('portal_token', token)
+    .single()
+
+  if (error) return null
+  return data as Customer
+}
+
+export async function getInstallationByCustomer(customerId: string) {
+  const { data, error } = await supabase
+    .from('installations')
+    .select(`
+      *,
+      customer:customers(*),
+      assignee:team_members(*),
+      smart_meter:smart_meters(*)
+    `)
+    .eq('customer_id', customerId)
+    .order('scheduled_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (error) return null
+  return data as Installation & {
+    customer: Customer
+    assignee: TeamMember | null
+    smart_meter: SmartMeter | null
+  }
+}
+
+// ============================================
+// Intake Forms
+// ============================================
+export async function createIntakeForm(intakeForm: IntakeFormInsert) {
+  // @ts-ignore - Supabase type inference issue
+  const { data, error } = await supabase.from('intake_forms').insert(intakeForm).select().single()
+
+  if (error) throw error
+  return data as IntakeForm
+}
+
+export async function getIntakeFormByCustomer(customerId: string) {
+  const { data, error } = await supabase
+    .from('intake_forms')
+    .select('*')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (error) return null
+  return data as IntakeForm
+}
+
+export async function updateIntakeForm(id: string, updates: Partial<IntakeForm>) {
+  // @ts-ignore - Supabase type inference issue
+  const { data, error } = await supabase.from('intake_forms').update(updates).eq('id', id).select().single()
+
+  if (error) throw error
+  return data as IntakeForm
+}
+
+// ============================================
+// Customer Photos
+// ============================================
+export async function createCustomerPhoto(photo: CustomerPhotoInsert) {
+  // @ts-ignore - Supabase type inference issue
+  const { data, error } = await supabase.from('customer_photos').insert(photo).select().single()
+
+  if (error) throw error
+  return data as CustomerPhoto
+}
+
+export async function getPhotosByCustomer(customerId: string) {
+  const { data, error } = await supabase
+    .from('customer_photos')
+    .select('*')
+    .eq('customer_id', customerId)
+    .order('uploaded_at', { ascending: false })
+
+  if (error) throw error
+  return data as CustomerPhoto[]
+}
+
+export async function getPhotosByInstallation(installationId: string) {
+  const { data, error } = await supabase
+    .from('customer_photos')
+    .select('*')
+    .eq('installation_id', installationId)
+    .order('uploaded_at', { ascending: false })
+
+  if (error) throw error
+  return data as CustomerPhoto[]
+}
+
+export async function deleteCustomerPhoto(id: string) {
+  const { error } = await supabase
+    .from('customer_photos')
+    .delete()
+    .eq('id', id)
+
+  if (error) throw error
+}
+
+// ============================================
+// Evaluations
+// ============================================
+export async function createEvaluation(evaluation: EvaluationInsert) {
+  // @ts-ignore - Supabase type inference issue
+  const { data, error } = await supabase.from('evaluations').insert(evaluation).select().single()
+
+  if (error) throw error
+  return data as Evaluation
+}
+
+export async function getEvaluationByInstallation(installationId: string) {
+  const { data, error } = await supabase
+    .from('evaluations')
+    .select('*')
+    .eq('installation_id', installationId)
+    .single()
+
+  if (error) return null
+  return data as Evaluation
+}
+
+export async function getEvaluationsByCustomer(customerId: string) {
+  const { data, error } = await supabase
+    .from('evaluations')
+    .select('*')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data as Evaluation[]
+}
+
+// ============================================
+// Issues
+// ============================================
+export async function createIssue(issue: IssueInsert) {
+  // @ts-ignore - Supabase type inference issue
+  const { data, error } = await supabase.from('issues').insert(issue).select().single()
+
+  if (error) throw error
+  return data as Issue
+}
+
+export async function getIssuesByCustomer(customerId: string) {
+  const { data, error } = await supabase
+    .from('issues')
+    .select('*')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data as Issue[]
+}
+
+export async function getIssuesByInstallation(installationId: string) {
+  const { data, error } = await supabase
+    .from('issues')
+    .select('*')
+    .eq('installation_id', installationId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data as Issue[]
+}
+
+export async function getAllIssues() {
+  const { data, error } = await supabase
+    .from('issues')
+    .select(`
+      *,
+      customer:customers(*)
+    `)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data as (Issue & { customer: Customer })[]
+}
+
+export async function updateIssueStatus(id: string, status: Issue['status']) {
+  // @ts-ignore - Supabase type inference issue
+  const { data, error } = await supabase.from('issues').update({ status }).eq('id', id).select().single()
+
+  if (error) throw error
+  return data as Issue
 }

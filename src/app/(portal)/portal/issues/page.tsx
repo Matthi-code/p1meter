@@ -2,19 +2,12 @@
 
 import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { mockCustomers } from '@/lib/mock-data'
 import { AlertCircle, CheckCircle2, HelpCircle, Phone, Mail, Upload, X, Loader2 } from 'lucide-react'
-import type { Customer } from '@/types/database'
-
-function getCustomerByToken(token: string | null): Customer | null {
-  if (!token) return null
-  return mockCustomers.find((c) => c.portal_token === token) || null
-}
 
 const issueTypes = [
   { key: 'no_data', label: 'Geen data in HomeWizard app' },
   { key: 'connection', label: 'Verbindingsproblemen' },
-  { key: 'led_issue', label: 'LED knippert rood/niet' },
+  { key: 'led_red', label: 'LED knippert rood/niet' },
   { key: 'physical', label: 'Fysiek probleem met meter' },
   { key: 'question', label: 'Algemene vraag' },
   { key: 'other', label: 'Anders' },
@@ -23,15 +16,20 @@ const issueTypes = [
 function IssuesContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
-  const customer = getCustomerByToken(token)
 
   const [submitted, setSubmitted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [issueType, setIssueType] = useState('')
   const [description, setDescription] = useState('')
   const [photo, setPhoto] = useState<{ file: File; preview: string } | null>(null)
 
-  if (!customer) {
-    return null
+  if (!token) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        Geen geldige toegangstoken gevonden.
+      </div>
+    )
   }
 
   const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,10 +43,39 @@ function IssuesContent() {
     reader.readAsDataURL(file)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Issue submitted:', { issueType, description, hasPhoto: !!photo })
-    setSubmitted(true)
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // TODO: Upload photo to storage if present
+      // For now, we'll skip photo upload
+      const photoUrl = null
+
+      const response = await fetch('/api/portal/issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          issue_type: issueType,
+          description,
+          photo_url: photoUrl,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Er is een fout opgetreden')
+      }
+
+      setSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Er is een fout opgetreden')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (submitted) {
@@ -173,6 +200,12 @@ function IssuesContent() {
         </div>
       </div>
 
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+          {error}
+        </div>
+      )}
+
       {/* Issue Form */}
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm p-6">
@@ -257,9 +290,17 @@ function IssuesContent() {
 
         <button
           type="submit"
-          className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          disabled={isLoading}
+          className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          Melding versturen
+          {isLoading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Verzenden...
+            </>
+          ) : (
+            'Melding versturen'
+          )}
         </button>
       </form>
     </div>

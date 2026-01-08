@@ -1,54 +1,128 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { mockCustomers, mockInstallations, mockTeamMembers } from '@/lib/mock-data'
 import { Star, CheckCircle2, Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-import type { Customer, Installation, TeamMember } from '@/types/database'
 
-function getCustomerByToken(token: string | null): Customer | null {
-  if (!token) return null
-  return mockCustomers.find((c) => c.portal_token === token) || null
-}
-
-function getCompletedInstallation(customerId: string): Installation | null {
-  return (
-    mockInstallations.find(
-      (i) => i.customer_id === customerId && i.status === 'completed'
-    ) || null
-  )
-}
-
-function getMonteur(monteurId: string | null): TeamMember | null {
-  if (!monteurId) return null
-  return mockTeamMembers.find((m) => m.id === monteurId) || null
+type InstallationData = {
+  id: string
+  scheduled_at: string
+  status: string
+  assignee?: { name: string } | null
 }
 
 function EvaluateContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
-  const customer = getCustomerByToken(token)
-  const installation = customer ? getCompletedInstallation(customer.id) : null
-  const monteur = installation ? getMonteur(installation.assigned_to) : null
 
   const [submitted, setSubmitted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [installation, setInstallation] = useState<InstallationData | null>(null)
+  const [alreadyEvaluated, setAlreadyEvaluated] = useState(false)
   const [rating, setRating] = useState(0)
   const [hoverRating, setHoverRating] = useState(0)
   const [feedback, setFeedback] = useState('')
   const [confirmed, setConfirmed] = useState(false)
 
-  if (!customer) {
-    return null
+  // Load installation data
+  useEffect(() => {
+    if (!token) {
+      setIsLoadingData(false)
+      return
+    }
+
+    const loadData = async () => {
+      try {
+        // Get customer and installation data via portal main page API or direct fetch
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/customers?portal_token=eq.${token}&select=id,installations(id,scheduled_at,status,assignee:team_members(name))`,
+          {
+            headers: {
+              'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            },
+          }
+        )
+        const customers = await response.json()
+        const customer = customers?.[0]
+
+        if (customer?.installations?.length > 0) {
+          // Find completed installation
+          const completedInstallation = customer.installations.find(
+            (i: InstallationData) => i.status === 'completed'
+          )
+          if (completedInstallation) {
+            setInstallation(completedInstallation)
+
+            // Check if already evaluated
+            const evalResponse = await fetch(`/api/portal/evaluate?token=${token}`)
+            const evalResult = await evalResponse.json()
+            if (evalResult.data?.some((e: { installation_id: string }) => e.installation_id === completedInstallation.id)) {
+              setAlreadyEvaluated(true)
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error loading data:', err)
+      } finally {
+        setIsLoadingData(false)
+      }
+    }
+
+    loadData()
+  }, [token])
+
+  if (!token) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        Geen geldige toegangstoken gevonden.
+      </div>
+    )
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Evaluation submitted:', { rating, feedback, confirmed })
-    setSubmitted(true)
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/portal/evaluate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          installation_id: installation?.id,
+          rating,
+          feedback,
+          confirmed,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Er is een fout opgetreden')
+      }
+
+      setSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Er is een fout opgetreden')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  if (submitted) {
+  if (isLoadingData) {
+    return (
+      <div className="flex justify-center py-8">
+        <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+      </div>
+    )
+  }
+
+  if (submitted || alreadyEvaluated) {
     return (
       <div className="space-y-6">
         <div className="bg-white rounded-xl shadow-sm p-8 text-center">
@@ -56,10 +130,12 @@ function EvaluateContent() {
             <CheckCircle2 className="h-8 w-8 text-green-600" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            Bedankt voor uw evaluatie!
+            {alreadyEvaluated ? 'Al beoordeeld' : 'Bedankt voor uw evaluatie!'}
           </h1>
           <p className="text-gray-600">
-            Uw feedback helpt ons om onze service te verbeteren.
+            {alreadyEvaluated
+              ? 'U heeft deze installatie al beoordeeld.'
+              : 'Uw feedback helpt ons om onze service te verbeteren.'}
           </p>
           <a
             href={`/portal?token=${token}`}
@@ -110,9 +186,15 @@ function EvaluateContent() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <p className="text-sm text-blue-800">
           <span className="font-medium">Installatie op {formatDate(installation.scheduled_at)}</span>
-          {monteur && <span> door {monteur.name}</span>}
+          {installation.assignee && <span> door {installation.assignee.name}</span>}
         </p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Rating */}
@@ -185,10 +267,17 @@ function EvaluateContent() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={rating === 0}
-          className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+          disabled={rating === 0 || isLoading}
+          className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          Evaluatie versturen
+          {isLoading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Verzenden...
+            </>
+          ) : (
+            'Evaluatie versturen'
+          )}
         </button>
       </form>
     </div>

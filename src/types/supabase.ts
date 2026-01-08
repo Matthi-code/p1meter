@@ -380,6 +380,10 @@ export type TeamMemberInsert = Database['public']['Tables']['team_members']['Ins
 export type CustomerInsert = Database['public']['Tables']['customers']['Insert']
 export type InstallationInsert = Database['public']['Tables']['installations']['Insert']
 export type TaskInsert = Database['public']['Tables']['tasks']['Insert']
+export type IntakeFormInsert = Database['public']['Tables']['intake_forms']['Insert']
+export type CustomerPhotoInsert = Database['public']['Tables']['customer_photos']['Insert']
+export type EvaluationInsert = Database['public']['Tables']['evaluations']['Insert']
+export type IssueInsert = Database['public']['Tables']['issues']['Insert']
 
 // With relations (for joined queries)
 export type InstallationWithRelations = Installation & {

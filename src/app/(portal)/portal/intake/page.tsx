@@ -1,15 +1,8 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { mockCustomers } from '@/lib/mock-data'
 import { FileText, CheckCircle2, Loader2 } from 'lucide-react'
-import type { Customer } from '@/types/database'
-
-function getCustomerByToken(token: string | null): Customer | null {
-  if (!token) return null
-  return mockCustomers.find((c) => c.portal_token === token) || null
-}
 
 type IntakeForm = {
   meter_location: string
@@ -25,9 +18,10 @@ type IntakeForm = {
 function IntakeContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
-  const customer = getCustomerByToken(token)
 
   const [submitted, setSubmitted] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState<IntakeForm>({
     meter_location: '',
     meter_accessibility: '',
@@ -39,15 +33,79 @@ function IntakeContent() {
     special_instructions: '',
   })
 
-  if (!customer) {
-    return null
+  // Load existing intake form if available
+  useEffect(() => {
+    if (!token) return
+
+    const loadExistingForm = async () => {
+      try {
+        const response = await fetch(`/api/portal/intake?token=${token}`)
+        const result = await response.json()
+
+        if (result.data) {
+          // Parse stored data back into form fields
+          const data = result.data
+          setForm({
+            meter_location: data.location || '',
+            meter_accessibility: data.accessibility || '',
+            parking_available: !data.parking_info?.startsWith('Geen'),
+            parking_notes: '',
+            pets: data.pets?.includes('aanwezig') || false,
+            pets_notes: '',
+            doorbell_works: !data.notes?.includes('Deurbel werkt niet'),
+            special_instructions: data.notes?.replace('Deurbel werkt niet. ', '').replace('. Deurbel werkt niet', '') || '',
+          })
+        }
+      } catch (err) {
+        // Silently fail - form will just be empty
+      }
+    }
+
+    loadExistingForm()
+  }, [token])
+
+  if (!token) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        Geen geldige toegangstoken gevonden.
+      </div>
+    )
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Mock submit - in production zou dit naar Supabase gaan
-    console.log('Intake form submitted:', form)
-    setSubmitted(true)
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const response = await fetch('/api/portal/intake', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token,
+          location: form.meter_location,
+          accessibility: form.meter_accessibility,
+          parking_available: form.parking_available,
+          parking_notes: form.parking_notes,
+          pets_present: form.pets,
+          pets_info: form.pets_notes,
+          doorbell_works: form.doorbell_works,
+          notes: form.special_instructions,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Er is een fout opgetreden')
+      }
+
+      setSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Er is een fout opgetreden')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   if (submitted) {
@@ -83,6 +141,12 @@ function IntakeContent() {
           Help ons voorbereiden door wat informatie te delen
         </p>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Meterkast */}
@@ -220,9 +284,17 @@ function IntakeContent() {
         {/* Submit */}
         <button
           type="submit"
-          className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          disabled={isLoading}
+          className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          Formulier versturen
+          {isLoading ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Verzenden...
+            </>
+          ) : (
+            'Formulier versturen'
+          )}
         </button>
       </form>
     </div>
