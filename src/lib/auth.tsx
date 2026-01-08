@@ -39,34 +39,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Check for existing session on mount
+  // Check for existing session on mount (using localStorage directly to avoid SDK hanging)
   useEffect(() => {
-    const supabase = getSupabaseClient()
     let mounted = true
 
-    // Get initial session
     const initSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        // Read session from localStorage directly
+        const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0]
+        const storageKey = `sb-${projectRef}-auth-token`
+        const sessionStr = localStorage.getItem(storageKey)
 
-        if (!mounted) return
+        if (!sessionStr) {
+          if (mounted) setIsLoading(false)
+          return
+        }
 
-        if (session?.user) {
-          // Fetch team member data
-          const { data: teamMember } = await supabase
-            .from('team_members')
-            .select('id, email, name, role')
-            .eq('user_id', session.user.id)
-            .single<Pick<TeamMember, 'id' | 'email' | 'name' | 'role'>>()
+        const session = JSON.parse(sessionStr)
+        if (!session?.user?.id || !session?.access_token) {
+          if (mounted) setIsLoading(false)
+          return
+        }
 
-          if (mounted && teamMember) {
-            setUser({
-              id: teamMember.id,
-              email: teamMember.email,
-              name: teamMember.name,
-              role: teamMember.role,
-            })
+        // Fetch team member data via direct fetch
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/team_members?user_id=eq.${session.user.id}&select=id,email,name,role`,
+          {
+            headers: {
+              'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+              'Authorization': `Bearer ${session.access_token}`,
+            },
           }
+        )
+        const teamMembers = await response.json()
+        const teamMember = teamMembers?.[0]
+
+        if (mounted && teamMember) {
+          setUser({
+            id: teamMember.id,
+            email: teamMember.email,
+            name: teamMember.name,
+            role: teamMember.role,
+          })
         }
       } catch (error) {
         console.error('Error fetching session:', error)
@@ -79,36 +93,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     initSession()
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return
-
-        if (event === 'SIGNED_IN' && session?.user) {
-          // Fetch team member data
-          const { data: teamMember } = await supabase
-            .from('team_members')
-            .select('id, email, name, role')
-            .eq('user_id', session.user.id)
-            .single<Pick<TeamMember, 'id' | 'email' | 'name' | 'role'>>()
-
-          if (mounted && teamMember) {
-            setUser({
-              id: teamMember.id,
-              email: teamMember.email,
-              name: teamMember.name,
-              role: teamMember.role,
-            })
-          }
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null)
-        }
-      }
-    )
-
     return () => {
       mounted = false
-      subscription.unsubscribe()
     }
   }, [])
 
@@ -165,9 +151,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   /** Uitloggen */
   const logout = useCallback(async () => {
-    const supabase = getSupabaseClient()
-    await supabase.auth.signOut()
+    // Clear session from localStorage and cookies
+    const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0]
+    localStorage.removeItem(`sb-${projectRef}-auth-token`)
+    document.cookie = `sb-${projectRef}-auth-token=; path=/; max-age=0`
+    document.cookie = `sb-${projectRef}-auth-token.0=; path=/; max-age=0`
     setUser(null)
+    // Redirect naar startpagina
+    window.location.href = '/'
   }, [])
 
   /** Check of user een van de gegeven rollen heeft */

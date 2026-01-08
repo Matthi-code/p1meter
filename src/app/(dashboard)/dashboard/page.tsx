@@ -184,28 +184,37 @@ export default function DashboardPage() {
                 <Link
                   key={installation.id}
                   href="/installations"
-                  className="p-4 flex items-center gap-4 hover:bg-slate-50 transition-colors group"
+                  className="p-4 flex items-start sm:items-center gap-3 sm:gap-4 hover:bg-slate-50 transition-colors group"
                 >
-                  <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-center">
-                    <span className="text-xs font-medium text-blue-600">
+                  <div className="flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 flex flex-col items-center justify-center">
+                    <span className="text-[10px] sm:text-xs font-medium text-blue-600">
                       {new Date(installation.scheduled_at).toLocaleDateString('nl-NL', { weekday: 'short' })}
                     </span>
-                    <span className="text-lg font-bold text-blue-700">
+                    <span className="text-base sm:text-lg font-bold text-blue-700">
                       {new Date(installation.scheduled_at).getDate()}
                     </span>
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                      {installation.customer?.name || 'Onbekende klant'}
-                    </p>
-                    <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
+                    <div className="flex items-start sm:items-center justify-between gap-2">
+                      <p className="font-medium text-slate-900 truncate group-hover:text-blue-600 transition-colors text-sm sm:text-base">
+                        {installation.customer?.name || 'Onbekende klant'}
+                      </p>
+                      <span
+                        className={`flex-shrink-0 px-2 sm:px-3 py-1 text-[10px] sm:text-xs font-medium rounded-full ${getStatusColor(
+                          installation.status
+                        )}`}
+                      >
+                        {getStatusLabel(installation.status)}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1 text-xs sm:text-sm text-slate-500">
                       <span className="flex items-center gap-1">
-                        <MapPin className="h-3.5 w-3.5" />
+                        <MapPin className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
                         {installation.customer?.city}
                       </span>
                       <span className="flex items-center gap-1">
-                        <Clock className="h-3.5 w-3.5" />
+                        <Clock className="h-3 sm:h-3.5 w-3 sm:w-3.5" />
                         {new Date(installation.scheduled_at).toLocaleTimeString('nl-NL', {
                           hour: '2-digit',
                           minute: '2-digit',
@@ -214,16 +223,7 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  <div className="flex-shrink-0 flex items-center gap-3">
-                    <span
-                      className={`px-3 py-1.5 text-xs font-medium rounded-full ${getStatusColor(
-                        installation.status
-                      )}`}
-                    >
-                      {getStatusLabel(installation.status)}
-                    </span>
-                    <ArrowRight className="h-4 w-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
-                  </div>
+                  <ArrowRight className="hidden sm:block h-4 w-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-1 transition-all flex-shrink-0" />
                 </Link>
               ))
             )}
@@ -299,32 +299,32 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick actions */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-6 text-white">
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-2xl p-4 sm:p-6 text-white">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h3 className="text-lg font-semibold">Snelle acties</h3>
-            <p className="text-slate-400 text-sm mt-1">
+            <h3 className="text-base sm:text-lg font-semibold">Snelle acties</h3>
+            <p className="text-slate-400 text-xs sm:text-sm mt-1">
               Begin direct met een nieuwe taak
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-2 sm:flex gap-2 sm:gap-3">
             <Link
               href="/installations"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-medium transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs sm:text-sm font-medium transition-colors"
             >
               <Wrench className="h-4 w-4" />
-              Nieuwe installatie
+              <span className="hidden xs:inline">Nieuwe</span> installatie
             </Link>
             <Link
               href="/customers"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-medium transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-white/10 hover:bg-white/20 rounded-xl text-xs sm:text-sm font-medium transition-colors"
             >
               <Users className="h-4 w-4" />
-              Klant toevoegen
+              <span className="hidden xs:inline">Klant</span> toevoegen
             </Link>
             <Link
               href="/calendar"
-              className="inline-flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 rounded-xl text-sm font-medium transition-colors shadow-lg shadow-blue-500/30"
+              className="col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-2 px-3 sm:px-4 py-2.5 bg-blue-500 hover:bg-blue-600 rounded-xl text-xs sm:text-sm font-medium transition-colors shadow-lg shadow-blue-500/30"
             >
               <Calendar className="h-4 w-4" />
               Bekijk kalender

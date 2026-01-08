@@ -155,16 +155,16 @@ export default function TasksPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Taken</h1>
-          <p className="text-gray-600">Beheer taken en terugkerende activiteiten</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Taken</h1>
+          <p className="text-sm sm:text-base text-gray-600">Beheer taken en terugkerende activiteiten</p>
         </div>
         <button
           onClick={handleAddNew}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           Nieuwe taak
@@ -172,41 +172,44 @@ export default function TasksPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+        <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
           <input
             type="text"
-            placeholder="Zoek op titel, beschrijving of toegewezen..."
+            placeholder="Zoeken..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
           />
         </div>
-        <div className="flex items-center gap-2">
-          <Filter className="h-5 w-5 text-gray-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          >
-            <option value="all">Alle statussen</option>
-            {statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {getStatusLabel(status)}
-              </option>
-            ))}
-          </select>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+            <Filter className="h-4 sm:h-5 w-4 sm:w-5 text-gray-400 flex-shrink-0" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="flex-1 sm:flex-initial px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value="all">Alle</option>
+              {statusOptions.map((status) => (
+                <option key={status} value={status}>
+                  {getStatusLabel(status)}
+                </option>
+              ))}
+            </select>
+          </div>
+          <label className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 cursor-pointer whitespace-nowrap">
+            <input
+              type="checkbox"
+              checked={showCompleted}
+              onChange={(e) => setShowCompleted(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="hidden sm:inline">Toon voltooide</span>
+            <span className="sm:hidden">Voltooid</span>
+          </label>
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={showCompleted}
-            onChange={(e) => setShowCompleted(e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-          />
-          Toon voltooide taken
-        </label>
       </div>
 
       {/* Statistieken */}
@@ -307,14 +310,14 @@ function TaskCard({
 
   return (
     <div
-      className={`p-4 hover:bg-gray-50 ${isCompleted ? 'opacity-60' : ''}`}
+      className={`p-3 sm:p-4 hover:bg-gray-50 ${isCompleted ? 'opacity-60' : ''}`}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
         {/* Checkbox */}
         <button
           onClick={onComplete}
           disabled={isCompleted}
-          className={`mt-1 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+          className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
             isCompleted
               ? 'bg-green-500 border-green-500 text-white'
               : 'border-gray-300 hover:border-blue-500'
@@ -325,92 +328,110 @@ function TaskCard({
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex flex-wrap items-start sm:items-center gap-2 sm:gap-3 mb-1">
             <h3
-              className={`font-medium ${
+              className={`font-medium text-sm sm:text-base ${
                 isCompleted ? 'line-through text-gray-500' : 'text-gray-900'
               }`}
             >
               {task.title}
             </h3>
-            {task.is_recurring && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
-                <RefreshCw className="h-3 w-3" />
-                Terugkerend
-              </span>
-            )}
-            <div className="relative">
-              <button
-                onClick={() => setShowStatusMenu(!showStatusMenu)}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full ${getStatusColor(
-                  task.status
-                )}`}
-              >
-                {getStatusLabel(task.status)}
-                <ChevronDown className="h-3 w-3" />
-              </button>
-
-              {showStatusMenu && (
-                <>
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setShowStatusMenu(false)}
-                  />
-                  <div className="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[120px]">
-                    {statusOptions.map((status) => (
-                      <button
-                        key={status}
-                        onClick={() => {
-                          onStatusChange(status)
-                          setShowStatusMenu(false)
-                        }}
-                        className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
-                          task.status === status
-                            ? 'font-medium text-blue-600'
-                            : 'text-gray-700'
-                        }`}
-                      >
-                        {getStatusLabel(status)}
-                      </button>
-                    ))}
-                  </div>
-                </>
+            <div className="flex items-center gap-2">
+              {task.is_recurring && (
+                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                  <RefreshCw className="h-2.5 sm:h-3 w-2.5 sm:w-3" />
+                  <span className="hidden sm:inline">Terugkerend</span>
+                </span>
               )}
+              <div className="relative">
+                <button
+                  onClick={() => setShowStatusMenu(!showStatusMenu)}
+                  className={`inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded-full ${getStatusColor(
+                    task.status
+                  )}`}
+                >
+                  {getStatusLabel(task.status)}
+                  <ChevronDown className="h-2.5 sm:h-3 w-2.5 sm:w-3" />
+                </button>
+
+                {showStatusMenu && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={() => setShowStatusMenu(false)}
+                    />
+                    <div className="absolute right-0 sm:left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[120px]">
+                      {statusOptions.map((status) => (
+                        <button
+                          key={status}
+                          onClick={() => {
+                            onStatusChange(status)
+                            setShowStatusMenu(false)
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
+                            task.status === status
+                              ? 'font-medium text-blue-600'
+                              : 'text-gray-700'
+                          }`}
+                        >
+                          {getStatusLabel(status)}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
 
           {task.description && (
-            <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+            <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{task.description}</p>
           )}
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-start sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
             <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              {formatDateTime(task.scheduled_at)}
+              <Calendar className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
+              <span className="truncate">{formatDateTime(task.scheduled_at)}</span>
             </div>
             {task.duration_minutes && (
               <div className="flex items-center gap-1">
-                <Clock className="h-4 w-4" />
+                <Clock className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
                 {task.duration_minutes} min
               </div>
             )}
             {task.assignee && (
               <div className="flex items-center gap-1">
-                <User className="h-4 w-4" />
-                {task.assignee.name}
+                <User className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
+                <span className="truncate">{task.assignee.name}</span>
               </div>
             )}
             {task.customer && (
               <div className="flex items-center gap-1">
-                <CheckSquare className="h-4 w-4" />
-                {task.customer.name}
+                <CheckSquare className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
+                <span className="truncate">{task.customer.name}</span>
               </div>
             )}
           </div>
+
+          {/* Mobile actions */}
+          <div className="flex items-center gap-2 mt-3 sm:hidden">
+            <button
+              onClick={onEdit}
+              className="flex-1 px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200"
+            >
+              Bewerken
+            </button>
+            <button
+              onClick={onDelete}
+              className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg border border-red-200"
+            >
+              Verwijder
+            </button>
+          </div>
         </div>
 
-        {/* Acties */}
-        <div className="flex items-center gap-2">
+        {/* Desktop actions */}
+        <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
           <button
             onClick={onEdit}
             className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"

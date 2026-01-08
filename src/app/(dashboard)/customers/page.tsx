@@ -23,8 +23,12 @@ import {
   Building,
   FileText,
   Loader2,
+  LayoutGrid,
+  List,
 } from 'lucide-react'
 import type { Customer } from '@/types/supabase'
+
+type ViewMode = 'grid' | 'list'
 
 export default function CustomersPage() {
   const { data: customers, isLoading, refetch } = useCustomers()
@@ -33,6 +37,7 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>('grid')
 
   // Gefilterde klanten op basis van zoekquery
   const filteredCustomers = useMemo(() => {
@@ -116,79 +121,105 @@ export default function CustomersPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Klanten</h1>
-          <p className="text-slate-500">Beheer je klantenbestand</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Klanten</h1>
+          <p className="text-sm sm:text-base text-slate-500">Beheer je klantenbestand</p>
         </div>
-        <button onClick={handleAddNew} className="btn btn-primary">
+        <button onClick={handleAddNew} className="btn btn-primary w-full sm:w-auto justify-center">
           <Plus className="h-4 w-4" />
           Nieuwe klant
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="card p-5">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100">
-              <Users className="h-6 w-6 text-blue-600" />
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
+        <div className="card p-3 sm:p-5">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-4">
+            <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-50 to-blue-100">
+              <Users className="h-4 sm:h-6 w-4 sm:w-6 text-blue-600" />
             </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{totalCustomers}</p>
-              <p className="text-sm text-slate-500">Totaal klanten</p>
-            </div>
-          </div>
-        </div>
-        <div className="card p-5">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100">
-              <Wrench className="h-6 w-6 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{customersWithInstallations}</p>
-              <p className="text-sm text-slate-500">Met installatie</p>
+            <div className="text-center sm:text-left">
+              <p className="text-lg sm:text-2xl font-bold text-slate-900">{totalCustomers}</p>
+              <p className="text-[10px] sm:text-sm text-slate-500">Klanten</p>
             </div>
           </div>
         </div>
-        <div className="card p-5">
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-violet-50 to-violet-100">
-              <Calendar className="h-6 w-6 text-violet-600" />
+        <div className="card p-3 sm:p-5">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-4">
+            <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100">
+              <Wrench className="h-4 sm:h-6 w-4 sm:w-6 text-emerald-600" />
             </div>
-            <div>
-              <p className="text-2xl font-bold text-slate-900">{totalInstallations}</p>
-              <p className="text-sm text-slate-500">Totaal installaties</p>
+            <div className="text-center sm:text-left">
+              <p className="text-lg sm:text-2xl font-bold text-slate-900">{customersWithInstallations}</p>
+              <p className="text-[10px] sm:text-sm text-slate-500">Met install.</p>
+            </div>
+          </div>
+        </div>
+        <div className="card p-3 sm:p-5">
+          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-4">
+            <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-violet-50 to-violet-100">
+              <Calendar className="h-4 sm:h-6 w-4 sm:w-6 text-violet-600" />
+            </div>
+            <div className="text-center sm:text-left">
+              <p className="text-lg sm:text-2xl font-bold text-slate-900">{totalInstallations}</p>
+              <p className="text-[10px] sm:text-sm text-slate-500">Installaties</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Zoekbalk */}
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-        <input
-          type="text"
-          placeholder="Zoek op naam, email, adres of plaats..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="input pl-12"
-        />
+      {/* Zoekbalk en view toggle */}
+      <div className="flex gap-2 sm:gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 sm:h-5 w-4 sm:w-5 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Zoeken..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input pl-10 sm:pl-12 text-sm"
+          />
+        </div>
+        {/* View toggle */}
+        <div className="flex bg-slate-100 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode('grid')}
+            className={`p-2 sm:p-2.5 rounded-md transition-all ${
+              viewMode === 'grid'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+            title="Blokweergave"
+          >
+            <LayoutGrid className="h-4 sm:h-5 w-4 sm:w-5" />
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`p-2 sm:p-2.5 rounded-md transition-all ${
+              viewMode === 'list'
+                ? 'bg-white text-blue-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+            title="Lijstweergave"
+          >
+            <List className="h-4 sm:h-5 w-4 sm:w-5" />
+          </button>
+        </div>
       </div>
 
-      {/* Klanten grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredCustomers.length === 0 ? (
-          <div className="col-span-full">
-            <div className="card p-12 text-center">
-              <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
-                <Users className="h-8 w-8 text-slate-400" />
-              </div>
-              <p className="text-slate-500">Geen klanten gevonden</p>
-            </div>
+      {/* Klanten weergave */}
+      {filteredCustomers.length === 0 ? (
+        <div className="card p-12 text-center">
+          <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
+            <Users className="h-8 w-8 text-slate-400" />
           </div>
-        ) : (
-          filteredCustomers.map((customer) => (
+          <p className="text-slate-500">Geen klanten gevonden</p>
+        </div>
+      ) : viewMode === 'grid' ? (
+        /* Grid weergave */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {filteredCustomers.map((customer) => (
             <CustomerCard
               key={customer.id}
               customer={customer}
@@ -196,9 +227,45 @@ export default function CustomersPage() {
               onSelect={() => setSelectedCustomer(customer)}
               onEdit={() => handleEdit(customer)}
             />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        /* Lijst weergave */
+        <div className="card overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-100">
+              <tr>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">
+                  Klant
+                </th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">
+                  Contact
+                </th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">
+                  Locatie
+                </th>
+                <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">
+                  Installaties
+                </th>
+                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">
+                  Acties
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredCustomers.map((customer) => (
+                <CustomerRow
+                  key={customer.id}
+                  customer={customer}
+                  installationCount={getInstallationCount(customer.id)}
+                  onSelect={() => setSelectedCustomer(customer)}
+                  onEdit={() => handleEdit(customer)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Klant detail sidebar */}
       {selectedCustomer && (
@@ -240,19 +307,19 @@ function CustomerCard({
 }) {
   return (
     <div
-      className="card p-5 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
+      className="card p-4 sm:p-5 hover:shadow-lg sm:hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
       onClick={onSelect}
     >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold">
+      <div className="flex items-start justify-between mb-3 sm:mb-4">
+        <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-sm sm:text-base">
             {customer.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
           </div>
           <div>
-            <h3 className="font-semibold text-slate-900 group-hover:text-blue-600 transition-colors">
+            <h3 className="font-semibold text-sm sm:text-base text-slate-900 group-hover:text-blue-600 transition-colors">
               {customer.name}
             </h3>
-            <p className="text-sm text-slate-500">{customer.city}</p>
+            <p className="text-xs sm:text-sm text-slate-500">{customer.city}</p>
           </div>
         </div>
         <button
@@ -260,40 +327,112 @@ function CustomerCard({
             e.stopPropagation()
             onEdit()
           }}
-          className="opacity-0 group-hover:opacity-100 p-2 hover:bg-slate-100 rounded-lg transition-all"
+          className="sm:opacity-0 group-hover:opacity-100 p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-all"
         >
-          <Pencil className="h-4 w-4 text-slate-500" />
+          <Pencil className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-slate-500" />
         </button>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <Mail className="h-4 w-4 text-slate-400" />
+      <div className="space-y-1.5 sm:space-y-2">
+        <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+          <Mail className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-slate-400 flex-shrink-0" />
           <span className="truncate">{customer.email}</span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <Phone className="h-4 w-4 text-slate-400" />
+        <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+          <Phone className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-slate-400 flex-shrink-0" />
           <span>{customer.phone}</span>
         </div>
-        <div className="flex items-center gap-2 text-sm text-slate-600">
-          <MapPin className="h-4 w-4 text-slate-400" />
+        <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
+          <MapPin className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-slate-400 flex-shrink-0" />
           <span className="truncate">{customer.address}</span>
         </div>
       </div>
 
-      <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-        <span className="text-xs text-slate-500">
-          Klant sinds {formatDate(customer.created_at)}
+      <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100 flex items-center justify-between">
+        <span className="text-[10px] sm:text-xs text-slate-500">
+          Sinds {formatDate(customer.created_at)}
         </span>
-        <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+        <span className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full ${
           installationCount > 0
             ? 'bg-emerald-50 text-emerald-700'
             : 'bg-slate-100 text-slate-600'
         }`}>
-          {installationCount} installatie{installationCount !== 1 ? 's' : ''}
+          {installationCount} install.
         </span>
       </div>
     </div>
+  )
+}
+
+/** Klant rij voor lijstweergave */
+function CustomerRow({
+  customer,
+  installationCount,
+  onSelect,
+  onEdit,
+}: {
+  customer: Customer
+  installationCount: number
+  onSelect: () => void
+  onEdit: () => void
+}) {
+  return (
+    <tr
+      className="hover:bg-slate-50 cursor-pointer transition-colors"
+      onClick={onSelect}
+    >
+      {/* Klant */}
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
+            {customer.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="font-medium text-slate-900 truncate">{customer.name}</p>
+            <p className="text-xs text-slate-500 md:hidden truncate">{customer.email}</p>
+          </div>
+        </div>
+      </td>
+
+      {/* Contact - hidden op mobile */}
+      <td className="px-4 py-3 hidden md:table-cell">
+        <div className="space-y-0.5">
+          <p className="text-sm text-slate-600 truncate">{customer.email}</p>
+          <p className="text-xs text-slate-400">{customer.phone}</p>
+        </div>
+      </td>
+
+      {/* Locatie - hidden op tablet */}
+      <td className="px-4 py-3 hidden lg:table-cell">
+        <p className="text-sm text-slate-600 truncate">
+          {customer.city}
+        </p>
+      </td>
+
+      {/* Installaties */}
+      <td className="px-4 py-3 text-center">
+        <span className={`inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 text-xs font-medium rounded-full ${
+          installationCount > 0
+            ? 'bg-emerald-50 text-emerald-700'
+            : 'bg-slate-100 text-slate-500'
+        }`}>
+          {installationCount}
+        </span>
+      </td>
+
+      {/* Acties */}
+      <td className="px-4 py-3 text-right">
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit()
+          }}
+          className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+        >
+          <Pencil className="h-4 w-4 text-slate-400" />
+        </button>
+      </td>
+    </tr>
   )
 }
 

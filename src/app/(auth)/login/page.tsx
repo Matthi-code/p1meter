@@ -37,7 +37,7 @@ export default function LoginPage() {
           .eq('user_id', session.user.id)
           .single()
 
-        const role = teamMember?.role || 'huiseigenaar'
+        const role = (teamMember as { role: string } | null)?.role || 'huiseigenaar'
 
         // Redirect op basis van rol
         if (role === 'huiseigenaar') {

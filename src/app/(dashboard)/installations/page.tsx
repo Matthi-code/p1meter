@@ -13,21 +13,23 @@ import {
 import {
   Plus,
   Search,
-  Filter,
   MapPin,
   User,
   Clock,
   X,
   ChevronDown,
+  ChevronUp,
   Calendar,
   Map,
   List,
+  LayoutList,
   Phone,
   Mail,
   Zap,
   AlertCircle,
   CheckCircle,
   Loader2,
+  ArrowUpDown,
 } from 'lucide-react'
 import type { Installation, Customer, TeamMember, SmartMeter, InstallationWithRelations } from '@/types/supabase'
 import type { InstallationStatus } from '@/types/database'
@@ -51,7 +53,9 @@ const statusOptions: InstallationStatus[] = [
   'cancelled',
 ]
 
-type ViewMode = 'list' | 'map'
+type ViewMode = 'cards' | 'compact' | 'map'
+type SortField = 'date' | 'customer' | 'city' | 'status' | 'assignee'
+type SortDirection = 'asc' | 'desc'
 
 export default function InstallationsPage() {
   const { data: installations, isLoading, refetch } = useInstallations()
@@ -62,10 +66,22 @@ export default function InstallationsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingInstallation, setEditingInstallation] = useState<InstallationWithRelations | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
+  const [viewMode, setViewMode] = useState<ViewMode>('cards')
   const [selectedInstallation, setSelectedInstallation] = useState<InstallationWithRelations | null>(null)
+  const [sortField, setSortField] = useState<SortField>('date')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc')
 
-  // Gefilterde installaties
+  // Sorteer functie toggle
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+    } else {
+      setSortField(field)
+      setSortDirection('asc')
+    }
+  }
+
+  // Gefilterde en gesorteerde installaties
   const filteredInstallations = useMemo(() => {
     if (!installations) return []
     let result = [...installations]
@@ -87,14 +103,31 @@ export default function InstallationsPage() {
       result = result.filter((i) => i.status === statusFilter)
     }
 
-    // Sorteer op datum
-    result.sort(
-      (a, b) =>
-        new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
-    )
+    // Sorteer op geselecteerde veld
+    result.sort((a, b) => {
+      let comparison = 0
+      switch (sortField) {
+        case 'date':
+          comparison = new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
+          break
+        case 'customer':
+          comparison = (a.customer?.name || '').localeCompare(b.customer?.name || '')
+          break
+        case 'city':
+          comparison = (a.customer?.city || '').localeCompare(b.customer?.city || '')
+          break
+        case 'status':
+          comparison = statusOptions.indexOf(a.status) - statusOptions.indexOf(b.status)
+          break
+        case 'assignee':
+          comparison = (a.assignee?.name || 'ZZZ').localeCompare(b.assignee?.name || 'ZZZ')
+          break
+      }
+      return sortDirection === 'asc' ? comparison : -comparison
+    })
 
     return result
-  }, [installations, searchQuery, statusFilter])
+  }, [installations, searchQuery, statusFilter, sortField, sortDirection])
 
   // Open modal voor nieuwe installatie
   function handleAddNew() {
@@ -168,9 +201,9 @@ export default function InstallationsPage() {
         </button>
       </div>
 
-      {/* Filters & View toggle */}
+      {/* Zoeken & View toggle */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-        <div className="relative flex-1">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--gray-400)]" />
           <input
             type="text"
@@ -180,49 +213,88 @@ export default function InstallationsPage() {
             className="input pl-10"
           />
         </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Filter className="h-5 w-5 text-[var(--gray-400)]" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="input w-auto"
-            >
-              <option value="all">Alle statussen</option>
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {getStatusLabel(status)}
-                </option>
-              ))}
-            </select>
-          </div>
 
-          {/* View toggle */}
-          <div className="flex bg-[var(--gray-100)] rounded-xl p-1">
-            <button
-              onClick={() => setViewMode('list')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                viewMode === 'list'
-                  ? 'bg-white text-[var(--gray-900)] shadow-sm'
-                  : 'text-[var(--gray-500)] hover:text-[var(--gray-700)]'
-              }`}
-            >
-              <List className="h-4 w-4" />
-              Lijst
-            </button>
-            <button
-              onClick={() => setViewMode('map')}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                viewMode === 'map'
-                  ? 'bg-white text-[var(--gray-900)] shadow-sm'
-                  : 'text-[var(--gray-500)] hover:text-[var(--gray-700)]'
-              }`}
-            >
-              <Map className="h-4 w-4" />
-              Kaart
-            </button>
-          </div>
+        {/* View toggle */}
+        <div className="flex bg-[var(--gray-100)] rounded-xl p-1">
+          <button
+            onClick={() => setViewMode('cards')}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              viewMode === 'cards'
+                ? 'bg-white text-[var(--gray-900)] shadow-sm'
+                : 'text-[var(--gray-500)] hover:text-[var(--gray-700)]'
+            }`}
+            title="Kaartweergave"
+          >
+            <List className="h-4 w-4" />
+            <span className="hidden sm:inline">Kaarten</span>
+          </button>
+          <button
+            onClick={() => setViewMode('compact')}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              viewMode === 'compact'
+                ? 'bg-white text-[var(--gray-900)] shadow-sm'
+                : 'text-[var(--gray-500)] hover:text-[var(--gray-700)]'
+            }`}
+            title="Compacte lijst"
+          >
+            <LayoutList className="h-4 w-4" />
+            <span className="hidden sm:inline">Compact</span>
+          </button>
+          <button
+            onClick={() => setViewMode('map')}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+              viewMode === 'map'
+                ? 'bg-white text-[var(--gray-900)] shadow-sm'
+                : 'text-[var(--gray-500)] hover:text-[var(--gray-700)]'
+            }`}
+            title="Kaartweergave"
+          >
+            <Map className="h-4 w-4" />
+            <span className="hidden sm:inline">Kaart</span>
+          </button>
         </div>
+      </div>
+
+      {/* Status filter knoppen */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => setStatusFilter('all')}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            statusFilter === 'all'
+              ? 'bg-slate-900 text-white'
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          Alle ({allInstallations.length})
+        </button>
+        {statusOptions.map((status) => {
+          const count = allInstallations.filter((i) => i.status === status).length
+          if (count === 0 && statusFilter !== status) return null
+
+          // Bepaal actieve button kleur op basis van status
+          const activeColors: Record<InstallationStatus, string> = {
+            scheduled: 'bg-blue-600 text-white',
+            confirmed: 'bg-emerald-600 text-white',
+            traveling: 'bg-purple-600 text-white',
+            in_progress: 'bg-amber-600 text-white',
+            completed: 'bg-slate-600 text-white',
+            cancelled: 'bg-red-600 text-white',
+          }
+
+          return (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                statusFilter === status
+                  ? activeColors[status]
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              {getStatusLabel(status)} ({count})
+            </button>
+          )
+        })}
       </div>
 
       {/* Statistieken */}
@@ -273,8 +345,8 @@ export default function InstallationsPage() {
         </div>
       )}
 
-      {/* List view */}
-      {viewMode === 'list' && (
+      {/* Cards view */}
+      {viewMode === 'cards' && (
         <div className="card overflow-hidden">
           <div className="divide-y divide-[var(--gray-50)]">
             {filteredInstallations.length === 0 ? (
@@ -301,8 +373,116 @@ export default function InstallationsPage() {
         </div>
       )}
 
-      {/* Selected installation detail (list view) */}
-      {viewMode === 'list' && selectedInstallation && (
+      {/* Compact list view */}
+      {viewMode === 'compact' && (
+        <div className="card overflow-hidden">
+          {filteredInstallations.length === 0 ? (
+            <div className="px-6 py-12 text-center">
+              <div className="w-16 h-16 mx-auto rounded-full bg-[var(--gray-100)] flex items-center justify-center mb-4">
+                <Calendar className="h-8 w-8 text-[var(--gray-400)]" />
+              </div>
+              <p className="text-[var(--gray-500)]">Geen installaties gevonden</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="text-left px-4 py-3">
+                      <button
+                        onClick={() => toggleSort('date')}
+                        className="flex items-center gap-1 text-xs font-semibold text-slate-600 uppercase tracking-wider hover:text-slate-900"
+                      >
+                        Datum
+                        {sortField === 'date' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                      </button>
+                    </th>
+                    <th className="text-left px-4 py-3">
+                      <button
+                        onClick={() => toggleSort('customer')}
+                        className="flex items-center gap-1 text-xs font-semibold text-slate-600 uppercase tracking-wider hover:text-slate-900"
+                      >
+                        Klant
+                        {sortField === 'customer' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                      </button>
+                    </th>
+                    <th className="text-left px-4 py-3 hidden md:table-cell">
+                      <button
+                        onClick={() => toggleSort('city')}
+                        className="flex items-center gap-1 text-xs font-semibold text-slate-600 uppercase tracking-wider hover:text-slate-900"
+                      >
+                        Plaats
+                        {sortField === 'city' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                      </button>
+                    </th>
+                    <th className="text-left px-4 py-3">
+                      <button
+                        onClick={() => toggleSort('status')}
+                        className="flex items-center gap-1 text-xs font-semibold text-slate-600 uppercase tracking-wider hover:text-slate-900"
+                      >
+                        Status
+                        {sortField === 'status' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                      </button>
+                    </th>
+                    <th className="text-left px-4 py-3 hidden lg:table-cell">
+                      <button
+                        onClick={() => toggleSort('assignee')}
+                        className="flex items-center gap-1 text-xs font-semibold text-slate-600 uppercase tracking-wider hover:text-slate-900"
+                      >
+                        Monteur
+                        {sortField === 'assignee' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+                      </button>
+                    </th>
+                    <th className="px-4 py-3"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredInstallations.map((installation) => (
+                    <tr
+                      key={installation.id}
+                      className="hover:bg-slate-50 cursor-pointer transition-colors"
+                      onClick={() => setSelectedInstallation(installation)}
+                    >
+                      <td className="px-4 py-3 text-sm text-slate-900 whitespace-nowrap">
+                        {formatDateTime(installation.scheduled_at)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-slate-900">{installation.customer?.name}</div>
+                        <div className="text-xs text-slate-500 md:hidden">{installation.customer?.city}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600 hidden md:table-cell">
+                        {installation.customer?.city}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(installation.status)}`}>
+                          {getStatusLabel(installation.status)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-slate-600 hidden lg:table-cell">
+                        {installation.assignee?.name || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleEdit(installation)
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          Bewerken
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Selected installation detail (cards/compact view) */}
+      {(viewMode === 'cards' || viewMode === 'compact') && selectedInstallation && (
         <InstallationDetail
           installation={selectedInstallation}
           onClose={() => setSelectedInstallation(null)}
@@ -586,20 +766,20 @@ function InstallationCard({
 
   return (
     <div
-      className="p-4 hover:bg-[var(--gray-50)] transition-colors cursor-pointer"
+      className="p-3 sm:p-4 hover:bg-[var(--gray-50)] transition-colors cursor-pointer"
       onClick={onSelect}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-4">
         {/* Links: klant info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3 mb-2">
-            <h3 className="font-medium text-[var(--gray-900)] truncate">
+          <div className="flex items-start sm:items-center justify-between sm:justify-start gap-2 sm:gap-3 mb-2">
+            <h3 className="font-medium text-[var(--gray-900)] truncate text-sm sm:text-base">
               {installation.customer?.name || 'Onbekende klant'}
             </h3>
-            <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <div className="relative flex-shrink-0" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => setShowStatusMenu(!showStatusMenu)}
-                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(
+                className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] sm:text-xs font-medium rounded-full ${getStatusColor(
                   installation.status
                 )}`}
               >
@@ -614,7 +794,7 @@ function InstallationCard({
                     className="fixed inset-0 z-10"
                     onClick={() => setShowStatusMenu(false)}
                   />
-                  <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-[var(--gray-100)] py-1 z-20 min-w-[140px]">
+                  <div className="absolute right-0 sm:left-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-[var(--gray-100)] py-1 z-20 min-w-[140px]">
                     {statusOptions.map((status) => (
                       <button
                         key={status}
@@ -637,27 +817,27 @@ function InstallationCard({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--gray-500)]">
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-start sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-[var(--gray-500)]">
             <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              {formatDateTime(installation.scheduled_at)}
+              <Calendar className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
+              <span className="truncate">{formatDateTime(installation.scheduled_at)}</span>
             </div>
             <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
+              <Clock className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
               {installation.duration_minutes} min
             </div>
-            <div className="flex items-center gap-1">
-              <MapPin className="h-4 w-4" />
-              {installation.customer?.address}, {installation.customer?.city}
+            <div className="flex items-center gap-1 col-span-2 sm:col-span-1">
+              <MapPin className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
+              <span className="truncate">{installation.customer?.city}</span>
             </div>
-            <div className="flex items-center gap-1">
-              <User className="h-4 w-4" />
-              {installation.assignee?.name || 'Niet toegewezen'}
+            <div className="flex items-center gap-1 col-span-2 sm:col-span-1">
+              <User className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
+              <span className="truncate">{installation.assignee?.name || 'Niet toegewezen'}</span>
             </div>
           </div>
 
           {installation.notes && (
-            <p className="mt-2 text-sm text-[var(--gray-600)] bg-[var(--gray-50)] rounded-lg px-3 py-2 line-clamp-1">
+            <p className="mt-2 text-xs sm:text-sm text-[var(--gray-600)] bg-[var(--gray-50)] rounded-lg px-3 py-2 line-clamp-1">
               {installation.notes}
             </p>
           )}
@@ -669,7 +849,7 @@ function InstallationCard({
             e.stopPropagation()
             onEdit()
           }}
-          className="btn btn-ghost text-[var(--primary-600)]"
+          className="btn btn-ghost text-[var(--primary-600)] self-end sm:self-auto text-xs sm:text-sm py-1.5 sm:py-2 px-2 sm:px-3"
         >
           Bewerken
         </button>
