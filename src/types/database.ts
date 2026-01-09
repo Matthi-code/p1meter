@@ -1,5 +1,5 @@
 /** Gebruikersrollen in het systeem */
-export type UserRole = 'admin' | 'planner' | 'monteur' | 'huiseigenaar'
+export type UserRole = 'admin' | 'planner' | 'energiebuddy' | 'huiseigenaar'
 
 /** Installatie status */
 export type InstallationStatus =

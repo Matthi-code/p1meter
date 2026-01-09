@@ -335,6 +335,23 @@ export default function LandingPage() {
             </div>
           </div>
 
+          {/* Customer Portal Link */}
+          <Link
+            href="/portal-login"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 text-white rounded-xl font-medium hover:from-emerald-600 hover:to-teal-700 transition-all shadow-lg shadow-emerald-500/20"
+          >
+            <Zap className="h-5 w-5" />
+            Ik ben klant - Naar mijn portaal
+            <ArrowRight className="h-5 w-5" />
+          </Link>
+
+          {/* Divider */}
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-slate-200" />
+            </div>
+          </div>
+
           {/* Info Links */}
           <div className="grid grid-cols-2 gap-3 lg:gap-4">
             <Link
@@ -355,7 +372,7 @@ export default function LandingPage() {
 
           {/* Footer */}
           <p className="mt-6 lg:mt-10 pb-6 lg:pb-0 text-center text-xs lg:text-sm text-slate-500">
-            Nog geen account?{' '}
+            Medewerker zonder account?{' '}
             <span className="text-slate-700">Neem contact op met de administrator.</span>
           </p>
         </div>

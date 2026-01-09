@@ -2,74 +2,40 @@
 
 import { Suspense, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { mockCustomers } from '@/lib/mock-data'
-import { Camera, Upload, X, CheckCircle2, Image, Loader2 } from 'lucide-react'
-import type { Customer } from '@/types/database'
+import { Camera, CheckCircle2, Loader2 } from 'lucide-react'
+import PhotoUpload from '@/components/PhotoUpload'
 
-function getCustomerByToken(token: string | null): Customer | null {
-  if (!token) return null
-  return mockCustomers.find((c) => c.portal_token === token) || null
+type UploadedPhoto = {
+  id?: string
+  url: string
+  path: string
 }
-
-type PhotoUpload = {
-  id: string
-  file: File
-  preview: string
-  type: 'meterkast' | 'meter' | 'omgeving'
-}
-
-const photoTypes = [
-  { key: 'meterkast', label: 'Meterkast (overzicht)', description: 'Foto van de hele meterkast' },
-  { key: 'meter', label: 'Slimme meter (close-up)', description: 'Duidelijke foto van de meter zelf' },
-  { key: 'omgeving', label: 'Omgeving', description: 'Foto van de ruimte rondom de meterkast' },
-] as const
 
 function UploadContent() {
   const searchParams = useSearchParams()
   const token = searchParams.get('token')
-  const customer = getCustomerByToken(token)
 
-  const [photos, setPhotos] = useState<PhotoUpload[]>([])
+  const [meterkastPhotos, setMeterkastPhotos] = useState<UploadedPhoto[]>([])
+  const [meterPhotos, setMeterPhotos] = useState<UploadedPhoto[]>([])
+  const [omgevingPhotos, setOmgevingPhotos] = useState<UploadedPhoto[]>([])
   const [submitted, setSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  if (!customer) {
-    return null
+  if (!token) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
+        Geen geldige toegangstoken gevonden.
+      </div>
+    )
   }
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: PhotoUpload['type']) => {
-    const files = e.target.files
-    if (!files) return
+  const totalPhotos = meterkastPhotos.length + meterPhotos.length + omgevingPhotos.length
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        const newPhoto: PhotoUpload = {
-          id: Math.random().toString(36).substring(7),
-          file,
-          preview: reader.result as string,
-          type,
-        }
-        setPhotos((prev) => [...prev, newPhoto])
-      }
-      reader.readAsDataURL(file)
-    })
-
-    // Reset input
-    e.target.value = ''
-  }
-
-  const removePhoto = (id: string) => {
-    setPhotos((prev) => prev.filter((p) => p.id !== id))
-  }
-
-  const handleSubmit = () => {
-    // Mock submit
-    console.log('Photos submitted:', photos.map((p) => ({ type: p.type, name: p.file.name })))
+  const handleSubmit = async () => {
+    setIsSubmitting(true)
+    // Photos are already uploaded, just mark as done
     setSubmitted(true)
-  }
-
-  const getPhotosOfType = (type: PhotoUpload['type']) => {
-    return photos.filter((p) => p.type === type)
+    setIsSubmitting(false)
   }
 
   if (submitted) {
@@ -83,7 +49,7 @@ function UploadContent() {
             Foto&apos;s ontvangen!
           </h1>
           <p className="text-gray-600">
-            Bedankt voor het uploaden van {photos.length} foto&apos;s. De monteur kan
+            Bedankt voor het uploaden van {totalPhotos} foto&apos;s. De Energie Buddy kan
             zich nu goed voorbereiden.
           </p>
           <a
@@ -102,7 +68,7 @@ function UploadContent() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Foto&apos;s uploaden</h1>
         <p className="text-gray-600 mt-1">
-          Upload foto&apos;s van uw meterkast zodat de monteur zich kan voorbereiden
+          Upload foto&apos;s van uw meterkast zodat de Energie Buddy zich kan voorbereiden
         </p>
       </div>
 
@@ -121,65 +87,63 @@ function UploadContent() {
         </div>
       </div>
 
-      {/* Upload sections */}
-      {photoTypes.map((photoType) => (
-        <div key={photoType.key} className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-semibold text-gray-900">{photoType.label}</h2>
-              <p className="text-sm text-gray-500">{photoType.description}</p>
-            </div>
-            <label className="cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                onChange={(e) => handleFileSelect(e, photoType.key)}
-                className="hidden"
-              />
-              <div className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                <Upload className="h-4 w-4" />
-                <span className="text-sm font-medium">Upload</span>
-              </div>
-            </label>
-          </div>
-
-          {/* Preview */}
-          {getPhotosOfType(photoType.key).length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {getPhotosOfType(photoType.key).map((photo) => (
-                <div key={photo.id} className="relative group">
-                  <img
-                    src={photo.preview}
-                    alt={`${photoType.label} preview`}
-                    className="w-full h-24 object-cover rounded-lg"
-                  />
-                  <button
-                    onClick={() => removePhoto(photo.id)}
-                    className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="border-2 border-dashed border-gray-200 rounded-lg p-8 text-center">
-              <Image className="h-8 w-8 text-gray-300 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">Nog geen foto&apos;s</p>
-            </div>
-          )}
+      {/* Meterkast photos */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="mb-4">
+          <h2 className="font-semibold text-gray-900">Meterkast (overzicht)</h2>
+          <p className="text-sm text-gray-500">Foto van de hele meterkast</p>
         </div>
-      ))}
+        <PhotoUpload
+          token={token}
+          type="pre"
+          maxPhotos={3}
+          onUploadComplete={setMeterkastPhotos}
+        />
+      </div>
+
+      {/* Meter photos */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="mb-4">
+          <h2 className="font-semibold text-gray-900">Slimme meter (close-up)</h2>
+          <p className="text-sm text-gray-500">Duidelijke foto van de meter zelf</p>
+        </div>
+        <PhotoUpload
+          token={token}
+          type="pre"
+          maxPhotos={3}
+          onUploadComplete={setMeterPhotos}
+        />
+      </div>
+
+      {/* Omgeving photos */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="mb-4">
+          <h2 className="font-semibold text-gray-900">Omgeving</h2>
+          <p className="text-sm text-gray-500">Foto van de ruimte rondom de meterkast</p>
+        </div>
+        <PhotoUpload
+          token={token}
+          type="pre"
+          maxPhotos={3}
+          onUploadComplete={setOmgevingPhotos}
+        />
+      </div>
 
       {/* Submit */}
-      {photos.length > 0 && (
+      {totalPhotos > 0 && (
         <button
           onClick={handleSubmit}
-          className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          disabled={isSubmitting}
+          className="w-full py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {photos.length} foto&apos;s versturen
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Verzenden...
+            </>
+          ) : (
+            `${totalPhotos} foto's versturen`
+          )}
         </button>
       )}
     </div>

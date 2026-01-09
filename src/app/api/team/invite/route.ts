@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (!['admin', 'planner', 'monteur'].includes(role)) {
+    if (!['admin', 'planner', 'energiebuddy'].includes(role)) {
       return NextResponse.json(
         { error: 'Ongeldige rol' },
         { status: 400 }

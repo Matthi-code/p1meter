@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { useCustomers, useInstallations } from '@/hooks/useData'
+import { useAuth } from '@/lib/auth'
 import * as dataApi from '@/lib/data'
 import { formatDate } from '@/lib/utils'
 import {
@@ -33,6 +34,7 @@ type ViewMode = 'grid' | 'list'
 export default function CustomersPage() {
   const { data: customers, isLoading, refetch } = useCustomers()
   const { data: installations } = useInstallations()
+  const { hasRole } = useAuth()
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -275,6 +277,7 @@ export default function CustomersPage() {
           onClose={() => setSelectedCustomer(null)}
           onEdit={() => handleEdit(selectedCustomer)}
           onDelete={() => handleDelete(selectedCustomer.id)}
+          canDelete={hasRole(['admin'])}
         />
       )}
 
@@ -443,12 +446,14 @@ function CustomerDetailSidebar({
   onClose,
   onEdit,
   onDelete,
+  canDelete = false,
 }: {
   customer: Customer
   installationCount: number
   onClose: () => void
   onEdit: () => void
   onDelete: () => void
+  canDelete?: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const portalUrl = `/portal?token=${customer.portal_token}`
@@ -578,6 +583,13 @@ function CustomerDetailSidebar({
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </button>
+                <button
+                  onClick={() => window.open(portalUrl, '_blank')}
+                  className="p-2 rounded-lg bg-white border border-blue-200 text-blue-600 hover:bg-blue-100 transition-all"
+                  title="Bekijk portal"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </button>
               </div>
             </div>
           </div>
@@ -603,12 +615,14 @@ function CustomerDetailSidebar({
               <Pencil className="h-4 w-4" />
               Bewerken
             </button>
-            <button
-              onClick={onDelete}
-              className="btn p-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
+            {canDelete && (
+              <button
+                onClick={onDelete}
+                className="btn p-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>

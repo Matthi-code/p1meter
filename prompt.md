@@ -105,7 +105,7 @@ Zonder prefix  → Server-only secrets (service keys)
 |-----|-------|
 | admin | Volledig beheer |
 | planner | Klanten, planning |
-| monteur | Eigen werk |
+| energiebuddy | Eigen werk |
 | huiseigenaar | Eigen afspraak |
 
 ### Database Tabellen

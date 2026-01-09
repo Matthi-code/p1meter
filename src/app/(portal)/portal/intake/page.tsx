@@ -119,7 +119,7 @@ function IntakeContent() {
             Bedankt voor het invullen!
           </h1>
           <p className="text-gray-600">
-            Uw gegevens zijn opgeslagen. De monteur kan zich nu goed voorbereiden
+            Uw gegevens zijn opgeslagen. De Energie Buddy kan zich nu goed voorbereiden
             op de installatie.
           </p>
           <a
@@ -214,7 +214,7 @@ function IntakeContent() {
                   className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <span className="text-gray-700">
-                  Er is parkeergelegenheid voor de monteur
+                  Er is parkeergelegenheid voor de Energie Buddy
                 </span>
               </label>
               {!form.parking_available && (
@@ -275,7 +275,7 @@ function IntakeContent() {
           <textarea
             value={form.special_instructions}
             onChange={(e) => setForm({ ...form, special_instructions: e.target.value })}
-            placeholder="Is er nog iets waar de monteur rekening mee moet houden?"
+            placeholder="Is er nog iets waar de Energie Buddy rekening mee moet houden?"
             rows={4}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />

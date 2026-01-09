@@ -6,7 +6,7 @@ import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import type { EventInput, EventClickArg } from '@fullcalendar/core'
-import { useInstallations, useTasks, useMonteurs } from '@/hooks/useData'
+import { useInstallations, useTasks, useEnergieBuddies } from '@/hooks/useData'
 import { getStatusLabel } from '@/lib/utils'
 import { X, Wrench, CheckSquare, MapPin, User, Clock, Loader2 } from 'lucide-react'
 import type { InstallationWithRelations, TaskWithRelations } from '@/types/supabase'
@@ -20,13 +20,13 @@ type CalendarEvent = EventInput & {
 
 export default function CalendarPage() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
-  const [filterMonteur, setFilterMonteur] = useState<string>('all')
+  const [filterEnergieBuddy, setFilterEnergieBuddy] = useState<string>('all')
 
   const { data: installations, isLoading: installationsLoading } = useInstallations()
   const { data: tasks, isLoading: tasksLoading } = useTasks()
-  const { data: monteurs, isLoading: monteursLoading } = useMonteurs()
+  const { data: energieBuddies, isLoading: energieBuddiesLoading } = useEnergieBuddies()
 
-  const isLoading = installationsLoading || tasksLoading || monteursLoading
+  const isLoading = installationsLoading || tasksLoading || energieBuddiesLoading
 
   // Converteer naar FullCalendar events
   const events = useMemo(() => {
@@ -34,8 +34,8 @@ export default function CalendarPage() {
 
     // Installaties
     ;(installations ?? []).forEach((inst) => {
-      // Filter op monteur
-      if (filterMonteur !== 'all' && inst.assigned_to !== filterMonteur) {
+      // Filter op Energie Buddy
+      if (filterEnergieBuddy !== 'all' && inst.assigned_to !== filterEnergieBuddy) {
         return
       }
 
@@ -58,11 +58,11 @@ export default function CalendarPage() {
 
     // Taken
     ;(tasks ?? []).forEach((task) => {
-      // Filter op monteur (als toegewezen)
+      // Filter op Energie Buddy (als toegewezen)
       if (
-        filterMonteur !== 'all' &&
+        filterEnergieBuddy !== 'all' &&
         task.assigned_to &&
-        task.assigned_to !== filterMonteur
+        task.assigned_to !== filterEnergieBuddy
       ) {
         return
       }
@@ -89,7 +89,7 @@ export default function CalendarPage() {
     })
 
     return calendarEvents
-  }, [installations, tasks, filterMonteur])
+  }, [installations, tasks, filterEnergieBuddy])
 
   if (isLoading) {
     return (
@@ -122,14 +122,14 @@ export default function CalendarPage() {
 
         {/* Filter */}
         <div className="flex items-center gap-4">
-          <label className="text-sm text-gray-600">Filter monteur:</label>
+          <label className="text-sm text-gray-600">Filter Energie Buddy:</label>
           <select
-            value={filterMonteur}
-            onChange={(e) => setFilterMonteur(e.target.value)}
+            value={filterEnergieBuddy}
+            onChange={(e) => setFilterEnergieBuddy(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
-            <option value="all">Alle monteurs</option>
-            {(monteurs ?? []).map((m) => (
+            <option value="all">Alle Energie Buddies</option>
+            {(energieBuddies ?? []).map((m) => (
               <option key={m.id} value={m.id}>
                 {m.name}
               </option>

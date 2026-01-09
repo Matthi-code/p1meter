@@ -44,7 +44,7 @@ export function getRoleLabel(role: string): string {
   const labels: Record<string, string> = {
     admin: 'Administrator',
     planner: 'Planner',
-    monteur: 'Monteur',
+    energiebuddy: 'Energie Buddy',
     huiseigenaar: 'Huiseigenaar',
   }
   return labels[role] || role

@@ -13,7 +13,7 @@ Webapp voor het beheren van p1Meter installaties bij huiseigenaren. De p1Meter i
 |-----|--------------|
 | **Admin** | Volledige toegang, beheert team en systeem |
 | **Planner** | Plant installaties en taken, beheert klanten |
-| **Monteur** | Voert installaties uit, ziet eigen taken |
+| **Energie Buddy** | Voert installaties uit, ziet eigen taken |
 | **Huiseigenaar** | Ziet eigen afspraak, vult intake/evaluatie in |
 
 ## Kernfunctionaliteit
@@ -22,11 +22,11 @@ Webapp voor het beheren van p1Meter installaties bij huiseigenaren. De p1Meter i
 - Dag/Week/Maand weergaven
 - Installaties en taken visueel weergeven
 - Drag & drop voor herplannen
-- Filtering per monteur
+- Filtering per Energie Buddy
 
 ### 2. Installatiebeheer
 - Inplannen bij klant
-- Toewijzen aan monteur
+- Toewijzen aan Energie Buddy
 - Status tracking: Gepland → Onderweg → Bezig → Voltooid
 - Koppeling met klantgegevens
 
@@ -87,7 +87,7 @@ Webapp voor het beheren van p1Meter installaties bij huiseigenaren. De p1Meter i
 ## Ontwerpprincipes
 
 1. **Eenvoud** - Minimale complexiteit, geen overbodige features
-2. **Mobiel-vriendelijk** - Monteurs gebruiken app op locatie
+2. **Mobiel-vriendelijk** - Energie Buddies gebruiken app op locatie
 3. **Offline-capable** - Instructiepagina's werken zonder internet
 4. **Snelheid** - Geen onnodige laadtijden
 

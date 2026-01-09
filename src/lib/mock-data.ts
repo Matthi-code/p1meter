@@ -21,11 +21,11 @@ export const mockUsers: Record<string, AuthUser> = {
     role: 'planner',
     name: 'Piet Plansen',
   },
-  monteur: {
+  energiebuddy: {
     id: 'user-3',
     email: 'jan@p1meter.nl',
-    role: 'monteur',
-    name: 'Jan de Monteur',
+    role: 'energiebuddy',
+    name: 'Jan de Vries',
   },
 }
 
@@ -55,9 +55,9 @@ export const mockTeamMembers: TeamMember[] = [
   {
     id: 'tm-3',
     user_id: 'user-3',
-    name: 'Jan de Monteur',
+    name: 'Jan de Vries',
     email: 'jan@p1meter.nl',
-    role: 'monteur',
+    role: 'energiebuddy',
     active: true,
     created_at: '2024-01-01T00:00:00Z',
   },
@@ -66,7 +66,7 @@ export const mockTeamMembers: TeamMember[] = [
     user_id: 'user-4',
     name: 'Kees Kansen',
     email: 'kees@p1meter.nl',
-    role: 'monteur',
+    role: 'energiebuddy',
     active: true,
     created_at: '2024-01-15T00:00:00Z',
   },

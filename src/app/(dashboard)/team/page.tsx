@@ -21,12 +21,12 @@ import {
 import type { TeamMember } from '@/types/supabase'
 import type { UserRole } from '@/types/database'
 
-const roleOptions: UserRole[] = ['admin', 'planner', 'monteur']
+const roleOptions: UserRole[] = ['admin', 'planner', 'energiebuddy']
 
 const roleColors: Record<UserRole, string> = {
   admin: 'bg-purple-100 text-purple-700',
   planner: 'bg-blue-100 text-blue-700',
-  monteur: 'bg-green-100 text-green-700',
+  energiebuddy: 'bg-green-100 text-green-700',
   huiseigenaar: 'bg-gray-100 text-gray-700',
 }
 
@@ -37,7 +37,7 @@ export default function TeamPage() {
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
 
-  // Tel installaties per monteur
+  // Tel installaties per Energie Buddy
   function getInstallationCount(memberId: string): number {
     return (installations ?? []).filter((i) => i.assigned_to === memberId).length
   }
@@ -154,7 +154,7 @@ export default function TeamPage() {
   const membersByRole = {
     admin: allMembers.filter((m) => m.role === 'admin'),
     planner: allMembers.filter((m) => m.role === 'planner'),
-    monteur: allMembers.filter((m) => m.role === 'monteur'),
+    energiebuddy: allMembers.filter((m) => m.role === 'energiebuddy'),
   }
 
   return (
@@ -195,8 +195,8 @@ export default function TeamPage() {
           color="bg-red-500"
         />
         <StatCard
-          label="Monteurs"
-          count={membersByRole.monteur.length}
+          label="Energie Buddies"
+          count={membersByRole.energiebuddy.length}
           icon={<Calendar className="h-5 w-5" />}
           color="bg-blue-500"
         />
@@ -232,11 +232,11 @@ export default function TeamPage() {
           onResetPassword={handleResetPassword}
         />
 
-        {/* Monteurs */}
+        {/* Energie Buddies */}
         <RoleSection
-          title="Monteurs"
+          title="Energie Buddies"
           description="Voeren installaties uit"
-          members={membersByRole.monteur}
+          members={membersByRole.energiebuddy}
           menuOpenId={menuOpenId}
           setMenuOpenId={setMenuOpenId}
           getInstallationCount={getInstallationCount}
@@ -403,7 +403,7 @@ function TeamMemberRow({
               <Mail className="h-3 w-3" />
               {member.email}
             </div>
-            {member.role === 'monteur' && (
+            {member.role === 'energiebuddy' && (
               <div className="text-sm text-gray-500">
                 {installationCount} installaties
               </div>
@@ -484,7 +484,7 @@ function TeamMemberModal({
   const [formData, setFormData] = useState({
     name: member?.name || '',
     email: member?.email || '',
-    role: member?.role || 'monteur',
+    role: member?.role || 'energiebuddy',
     active: member?.active ?? true,
   })
 
@@ -571,7 +571,7 @@ function TeamMemberModal({
                 'Volledige toegang tot alle functies'}
               {formData.role === 'planner' &&
                 'Kan klanten en installaties beheren'}
-              {formData.role === 'monteur' && 'Ziet eigen taken en installaties'}
+              {formData.role === 'energiebuddy' && 'Ziet eigen taken en installaties'}
             </p>
           </div>
 

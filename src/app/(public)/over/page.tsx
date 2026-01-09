@@ -39,9 +39,9 @@ export default function OverPage() {
               <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4">
                 <Users className="h-6 w-6 text-blue-600" />
               </div>
-              <h3 className="font-semibold text-slate-900 mb-2">Ervaren monteurs</h3>
+              <h3 className="font-semibold text-slate-900 mb-2">Ervaren Energie Buddies</h3>
               <p className="text-slate-600 text-sm">
-                Ons team bestaat uit ervaren monteurs die zijn getraind in de installatie van slimme energie-apparatuur.
+                Ons team bestaat uit ervaren Energie Buddies die zijn getraind in de installatie van slimme energie-apparatuur.
               </p>
             </div>
 

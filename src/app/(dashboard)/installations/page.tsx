@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import dynamic from 'next/dynamic'
-import { useInstallations, useMonteurs, useCustomers, useSmartMeters } from '@/hooks/useData'
+import { useInstallations, useEnergieBuddies, useCustomers, useSmartMeters } from '@/hooks/useData'
 import * as dataApi from '@/lib/data'
 import {
   formatDateTime,
@@ -30,6 +30,7 @@ import {
   CheckCircle,
   Loader2,
   ArrowUpDown,
+  ExternalLink,
 } from 'lucide-react'
 import type { Installation, Customer, TeamMember, SmartMeter, InstallationWithRelations } from '@/types/supabase'
 import type { InstallationStatus } from '@/types/database'
@@ -59,7 +60,7 @@ type SortDirection = 'asc' | 'desc'
 
 export default function InstallationsPage() {
   const { data: installations, isLoading, refetch } = useInstallations()
-  const { data: monteurs } = useMonteurs()
+  const { data: energieBuddies } = useEnergieBuddies()
   const { data: customers } = useCustomers()
   const { data: smartMeters } = useSmartMeters()
   const [searchQuery, setSearchQuery] = useState('')
@@ -207,7 +208,7 @@ export default function InstallationsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-[var(--gray-400)]" />
           <input
             type="text"
-            placeholder="Zoek op klant, adres of monteur..."
+            placeholder="Zoek op klant, adres of Energie Buddy..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="input pl-10"
@@ -429,7 +430,7 @@ export default function InstallationsPage() {
                         onClick={() => toggleSort('assignee')}
                         className="flex items-center gap-1 text-xs font-semibold text-slate-600 uppercase tracking-wider hover:text-slate-900"
                       >
-                        Monteur
+                        Energie Buddy
                         {sortField === 'assignee' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </button>
                     </th>
@@ -496,7 +497,7 @@ export default function InstallationsPage() {
         <InstallationModal
           installation={editingInstallation}
           customers={customers ?? []}
-          monteurs={monteurs ?? []}
+          energieBuddies={energieBuddies ?? []}
           onClose={() => {
             setIsModalOpen(false)
             setEditingInstallation(null)
@@ -571,6 +572,15 @@ function InstallationDetail({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {installation.customer?.portal_token && (
+            <button
+              onClick={() => window.open(`/portal?token=${installation.customer?.portal_token}`, '_blank')}
+              className="btn btn-secondary"
+            >
+              <ExternalLink className="h-4 w-4" />
+              Klantportal
+            </button>
+          )}
           <button
             onClick={onEdit}
             className="btn btn-secondary"
@@ -862,13 +872,13 @@ function InstallationCard({
 function InstallationModal({
   installation,
   customers,
-  monteurs,
+  energieBuddies,
   onClose,
   onSave,
 }: {
   installation: InstallationWithRelations | null
   customers: Customer[]
-  monteurs: TeamMember[]
+  energieBuddies: TeamMember[]
   onClose: () => void
   onSave: (installation: Partial<Installation>) => void
 }) {
@@ -983,7 +993,7 @@ function InstallationModal({
             </div>
           </div>
 
-          {/* Duur en monteur */}
+          {/* Duur en Energie Buddy */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-[var(--gray-700)] mb-1.5">
@@ -1006,7 +1016,7 @@ function InstallationModal({
             </div>
             <div>
               <label className="block text-sm font-medium text-[var(--gray-700)] mb-1.5">
-                Monteur *
+                Energie Buddy *
               </label>
               <select
                 required
@@ -1019,10 +1029,10 @@ function InstallationModal({
                 }
                 className="input"
               >
-                <option value="">Selecteer monteur...</option>
-                {monteurs.map((monteur) => (
-                  <option key={monteur.id} value={monteur.id}>
-                    {monteur.name}
+                <option value="">Selecteer Energie Buddy...</option>
+                {energieBuddies.map((buddy) => (
+                  <option key={buddy.id} value={buddy.id}>
+                    {buddy.name}
                   </option>
                 ))}
               </select>

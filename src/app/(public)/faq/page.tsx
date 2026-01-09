@@ -35,25 +35,25 @@ const faqItems: FAQItem[] = [
     category: 'Installatie',
     question: 'Hoe werkt de installatie?',
     answer:
-      'Onze monteur komt bij je langs, sluit de p1Meter aan op de P1-poort van je slimme meter, en configureert de WiFi-verbinding. Daarna helpt de monteur je met het instellen van de HomeWizard app. De hele installatie duurt ongeveer 15-30 minuten.',
+      'Onze Energie Buddy komt bij je langs, sluit de p1Meter aan op de P1-poort van je slimme meter, en configureert de WiFi-verbinding. Daarna helpt de Energie Buddy je met het instellen van de HomeWizard app. De hele installatie duurt ongeveer 15-30 minuten.',
   },
   {
     category: 'Installatie',
     question: 'Werkt de p1Meter met mijn slimme meter?',
     answer:
-      'De p1Meter werkt met alle DSMR 4.0+ slimme meters in Nederland. Dit zijn meters van merken zoals Landis+Gyr, Kaifa, Iskra, Sagemcom en Kamstrup. Bij twijfel controleren onze monteurs de compatibiliteit voor installatie.',
+      'De p1Meter werkt met alle DSMR 4.0+ slimme meters in Nederland. Dit zijn meters van merken zoals Landis+Gyr, Kaifa, Iskra, Sagemcom en Kamstrup. Bij twijfel controleren onze Energie Buddies de compatibiliteit voor installatie.',
   },
   {
     category: 'Installatie',
     question: 'Heb ik een adapter nodig?',
     answer:
-      'Dit hangt af van je slimme meter. Meters met SMR 5.0 of nieuwer hebben geen adapter nodig - de p1Meter kan direct worden aangesloten. Bij oudere meters (SMR 4.x en eerder) is een USB-C adapter vereist. Onze monteur brengt de juiste adapter mee indien nodig.',
+      'Dit hangt af van je slimme meter. Meters met SMR 5.0 of nieuwer hebben geen adapter nodig - de p1Meter kan direct worden aangesloten. Bij oudere meters (SMR 4.x en eerder) is een USB-C adapter vereist. Onze Energie Buddy brengt de juiste adapter mee indien nodig.',
   },
   {
     category: 'Installatie',
     question: 'Waar zit de P1-poort op mijn meter?',
     answer:
-      'De P1-poort zit meestal aan de onderkant of zijkant van je slimme meter. Het is een kleine poort met een afdekkapje. Onze monteur vindt de juiste aansluiting voor je.',
+      'De P1-poort zit meestal aan de onderkant of zijkant van je slimme meter. Het is een kleine poort met een afdekkapje. Onze Energie Buddy vindt de juiste aansluiting voor je.',
   },
 
   // App & Gebruik

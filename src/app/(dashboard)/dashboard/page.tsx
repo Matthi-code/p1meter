@@ -60,9 +60,9 @@ export default function DashboardPage() {
       href: '/customers',
     },
     {
-      label: 'Actieve monteurs',
-      value: stats?.activeMonteurs ?? 0,
-      total: stats?.activeMonteurs ?? 0,
+      label: 'Actieve Energie Buddies',
+      value: stats?.activeEnergieBuddies ?? 0,
+      total: stats?.activeEnergieBuddies ?? 0,
       icon: <UserCheck className="h-6 w-6" />,
       gradient: 'from-violet-500 to-purple-600',
       bgGradient: 'from-violet-50 to-purple-100',

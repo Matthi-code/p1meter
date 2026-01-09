@@ -9,6 +9,8 @@ const publicRoutes = [
   '/faq',
   '/over',
   '/instructions',
+  '/portal',        // Token-based auth (handled in portal layout)
+  '/portal-login',  // Portal login page
 ]
 
 // Routes die alleen voor specifieke rollen zijn
@@ -81,7 +83,7 @@ export async function middleware(request: NextRequest) {
 
   const userRole = teamMember?.role || 'huiseigenaar'
 
-  // Check dashboard routes (alleen admin, planner, monteur)
+  // Check dashboard routes (alleen admin, planner, energiebuddy)
   const isDashboardRoute = dashboardRoutes.some(route =>
     pathname === route || pathname.startsWith(`${route}/`)
   )
@@ -98,8 +100,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl)
     }
 
-    // Alleen admin, planner, monteur mogen dashboard zien
-    if (!['admin', 'planner', 'monteur'].includes(userRole)) {
+    // Alleen admin, planner, energiebuddy mogen dashboard zien
+    if (!['admin', 'planner', 'energiebuddy'].includes(userRole)) {
       // Huiseigenaar → redirect naar portal
       const redirectUrl = new URL('/portal', request.url)
       return NextResponse.redirect(redirectUrl)
@@ -113,7 +115,7 @@ export async function middleware(request: NextRequest) {
 
   if (isPortalRoute) {
     // Alle ingelogde gebruikers mogen portal zien
-    // (huiseigenaar, monteur, planner, admin)
+    // (huiseigenaar, energiebuddy, planner, admin)
     return response
   }
 

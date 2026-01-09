@@ -28,10 +28,10 @@
 - CRUD klanten
 - CRUD installaties
 - CRUD taken
-- Toewijzen aan monteurs
+- Toewijzen aan Energie Buddies
 - Kalender beheer
 
-### 2.3 Monteur
+### 2.3 Energie Buddy
 - Lezen klantgegevens
 - Eigen taken/installaties zien
 - Status updaten (eigen werk)
@@ -81,7 +81,7 @@
 ### 3.3 Kalender
 
 **Weergaven**
-- **Dag**: Tijdslots per uur, alle monteurs naast elkaar
+- **Dag**: Tijdslots per uur, alle Energie Buddies naast elkaar
 - **Week**: 7 dagen, compacte weergave
 - **Maand**: Overzicht, alleen aantal items per dag
 
@@ -91,7 +91,7 @@
 | Klik op lege slot | Nieuwe installatie/taak modal |
 | Klik op item | Detail modal |
 | Drag & drop | Herplannen (met bevestiging) |
-| Filter dropdown | Toon alleen specifieke monteur |
+| Filter dropdown | Toon alleen specifieke Energie Buddy |
 
 **Kleurcodes**
 | Kleur | Betekenis |
@@ -117,7 +117,7 @@ Gepland → Bevestigd → Onderweg → Bezig → Voltooid
 | Klant | Selectie | Ja |
 | Datum/tijd | Datetime | Ja |
 | Duur (minuten) | Nummer | Ja (default: 60) |
-| Monteur | Selectie | Ja |
+| Energie Buddy | Selectie | Ja |
 | Notities | Tekst | Nee |
 
 **Acties**
@@ -206,7 +206,7 @@ Gepland → Bevestigd → Onderweg → Bezig → Voltooid
 │  Uw afspraak                       │
 │  📅 15 januari 2026, 10:00-11:00   │
 │  📍 [Adres]                        │
-│  👤 Monteur: Jan                   │
+│  👤 Energie Buddy: Jan             │
 │  Status: Gepland                   │
 │                                    │
 │  [Verzetten] [Annuleren]           │
@@ -377,7 +377,7 @@ issues ───────────┘
 | user_id | UUID | FK naar Supabase Auth |
 | name | TEXT | Volledige naam |
 | email | TEXT | Email adres |
-| role | ENUM | admin, planner, monteur |
+| role | ENUM | admin, planner, energiebuddy |
 | active | BOOLEAN | Account actief |
 | created_at | TIMESTAMP | Aanmaakdatum |
 

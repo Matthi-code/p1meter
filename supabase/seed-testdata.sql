@@ -5,8 +5,8 @@
 -- 1. Extra Team Members (naast admin Matthi)
 -- ============================================
 INSERT INTO team_members (name, email, role, active) VALUES
-  ('Jan de Vries', 'jan@p1meter.nl', 'monteur', true),
-  ('Pieter Bakker', 'pieter@p1meter.nl', 'monteur', true),
+  ('Jan de Vries', 'jan@p1meter.nl', 'energiebuddy', true),
+  ('Pieter Bakker', 'pieter@p1meter.nl', 'energiebuddy', true),
   ('Lisa van Dijk', 'lisa@p1meter.nl', 'planner', true),
   ('Karin Smit', 'karin@p1meter.nl', 'planner', true)
 ON CONFLICT (email) DO NOTHING;

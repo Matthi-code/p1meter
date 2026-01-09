@@ -44,11 +44,11 @@ export async function getTeamMemberById(id: string) {
   return data as TeamMember
 }
 
-export async function getMonteurs() {
+export async function getEnergieBuddies() {
   const { data, error } = await supabase
     .from('team_members')
     .select('*')
-    .eq('role', 'monteur')
+    .eq('role', 'energiebuddy')
     .eq('active', true)
     .order('name')
 
@@ -389,7 +389,7 @@ export async function getDashboardStats() {
     { count: totalInstallations },
     { count: todayInstallations },
     { count: pendingTasks },
-    { count: activeMonteurs },
+    { count: activeEnergieBuddies },
   ] = await Promise.all([
     supabase.from('customers').select('*', { count: 'exact', head: true }),
     supabase.from('installations').select('*', { count: 'exact', head: true }),
@@ -405,7 +405,7 @@ export async function getDashboardStats() {
     supabase
       .from('team_members')
       .select('*', { count: 'exact', head: true })
-      .eq('role', 'monteur')
+      .eq('role', 'energiebuddy')
       .eq('active', true),
   ])
 
@@ -414,7 +414,7 @@ export async function getDashboardStats() {
     totalInstallations: totalInstallations || 0,
     todayInstallations: todayInstallations || 0,
     pendingTasks: pendingTasks || 0,
-    activeMonteurs: activeMonteurs || 0,
+    activeEnergieBuddies: activeEnergieBuddies || 0,
   }
 }
 

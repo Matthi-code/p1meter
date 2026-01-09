@@ -10,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ENUM TYPES
 -- ============================================
 
-CREATE TYPE user_role AS ENUM ('admin', 'planner', 'monteur', 'huiseigenaar');
+CREATE TYPE user_role AS ENUM ('admin', 'planner', 'energiebuddy', 'huiseigenaar');
 CREATE TYPE installation_status AS ENUM ('scheduled', 'confirmed', 'traveling', 'in_progress', 'completed', 'cancelled');
 CREATE TYPE task_status AS ENUM ('pending', 'in_progress', 'completed');
 CREATE TYPE issue_category AS ENUM ('malfunction', 'question', 'complaint');
@@ -27,7 +27,7 @@ CREATE TABLE team_members (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
-  role user_role NOT NULL DEFAULT 'monteur',
+  role user_role NOT NULL DEFAULT 'energiebuddy',
   active BOOLEAN NOT NULL DEFAULT true,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

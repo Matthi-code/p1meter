@@ -46,8 +46,8 @@ export function useTeamMembers() {
   return useQuery(() => data.getTeamMembers())
 }
 
-export function useMonteurs() {
-  return useQuery(() => data.getMonteurs())
+export function useEnergieBuddies() {
+  return useQuery(() => data.getEnergieBuddies())
 }
 
 // ============================================

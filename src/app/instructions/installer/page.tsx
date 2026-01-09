@@ -109,7 +109,7 @@ export default function InstallerInstructionsPage() {
               </div>
               <div>
                 <h1 className="font-bold">p1Meter Installatie</h1>
-                <p className={`text-xs ${textMuted}`}>Instructies voor monteurs</p>
+                <p className={`text-xs ${textMuted}`}>Instructies voor Energie Buddies</p>
               </div>
             </div>
             <button

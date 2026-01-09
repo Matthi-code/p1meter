@@ -204,7 +204,7 @@ export default function HomeownerInstructionsPage() {
                 <div className="flex gap-3">
                   <CheckCircle2 className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-blue-800">
-                    <strong>Tip:</strong> De monteur heeft de p1Meter waarschijnlijk al voor je gekoppeld.
+                    <strong>Tip:</strong> De Energie Buddy heeft de p1Meter waarschijnlijk al voor je gekoppeld.
                     Check of je data ziet in de app voordat je deze stappen doorloopt.
                   </p>
                 </div>
