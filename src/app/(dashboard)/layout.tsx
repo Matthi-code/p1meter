@@ -8,6 +8,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useCustomers, useInstallations, useTasks, useTeamMembers } from '@/hooks/useData'
 import {
   Calendar,
+  CalendarCheck,
   Users,
   Wrench,
   CheckSquare,
@@ -26,47 +27,82 @@ import {
   HelpCircle,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { MobileBottomNav } from '@/components/MobileBottomNav'
 
 type NavItem = {
   href: string
   label: string
   icon: ReactNode
-  roles?: string[]
 }
 
-const navItems: NavItem[] = [
-  {
-    href: '/dashboard',
-    label: 'Dashboard',
-    icon: <LayoutDashboard className="h-5 w-5" />,
-  },
-  {
-    href: '/calendar',
-    label: 'Kalender',
-    icon: <Calendar className="h-5 w-5" />,
-  },
-  {
-    href: '/installations',
-    label: 'Installaties',
-    icon: <Wrench className="h-5 w-5" />,
-  },
-  {
-    href: '/tasks',
-    label: 'Taken',
-    icon: <CheckSquare className="h-5 w-5" />,
-  },
-  {
-    href: '/customers',
-    label: 'Klanten',
-    icon: <Users className="h-5 w-5" />,
-  },
-  {
-    href: '/team',
-    label: 'Team',
-    icon: <UserCog className="h-5 w-5" />,
-    roles: ['admin'],
-  },
-]
+// Role-based navigation - different menu items per role
+function getNavItems(role: string): NavItem[] {
+  // Energie Buddy sees focused, task-oriented navigation
+  if (role === 'energiebuddy') {
+    return [
+      {
+        href: '/dashboard',
+        label: 'Dashboard',
+        icon: <LayoutDashboard className="h-5 w-5" />,
+      },
+      {
+        href: '/today',
+        label: 'Mijn Dag',
+        icon: <CalendarCheck className="h-5 w-5" />,
+      },
+      {
+        href: '/installations',
+        label: 'Mijn Installaties',
+        icon: <Wrench className="h-5 w-5" />,
+      },
+      {
+        href: '/tasks',
+        label: 'Mijn Taken',
+        icon: <CheckSquare className="h-5 w-5" />,
+      },
+    ]
+  }
+
+  // Planner and Admin see full navigation
+  const items: NavItem[] = [
+    {
+      href: '/dashboard',
+      label: 'Dashboard',
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      href: '/calendar',
+      label: 'Kalender',
+      icon: <Calendar className="h-5 w-5" />,
+    },
+    {
+      href: '/installations',
+      label: 'Installaties',
+      icon: <Wrench className="h-5 w-5" />,
+    },
+    {
+      href: '/customers',
+      label: 'Klanten',
+      icon: <Users className="h-5 w-5" />,
+    },
+    {
+      href: '/tasks',
+      label: 'Taken',
+      icon: <CheckSquare className="h-5 w-5" />,
+    },
+  ]
+
+  // Admin also sees Team management
+  if (role === 'admin') {
+    items.push({
+      href: '/team',
+      label: 'Team',
+      icon: <UserCog className="h-5 w-5" />,
+    })
+  }
+
+  return items
+}
 
 type DashboardLayoutProps = {
   children: ReactNode
@@ -340,10 +376,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
     return null
   }
 
-  // Filter nav items op rol
-  const visibleNavItems = navItems.filter(
-    (item) => !item.roles || hasRole(item.roles as any)
-  )
+  // Get nav items based on user role
+  const visibleNavItems = getNavItems(user.role)
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
@@ -494,9 +528,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* Page content */}
         <main className="flex-1 overflow-auto">
-          <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+          <div className="p-4 sm:p-6 lg:p-8 pb-20 lg:pb-8">{children}</div>
         </main>
       </div>
+
+      {/* Mobile bottom navigation */}
+      <MobileBottomNav />
     </div>
   )
 }
