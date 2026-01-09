@@ -227,16 +227,16 @@ export default function LandingPage() {
         </div>
 
         {/* Bottom/Right Side - Login Form */}
-        <div className="lg:flex-none lg:w-[480px] xl:w-[540px] flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-8 lg:py-0 bg-white lg:bg-slate-50 rounded-t-[2rem] lg:rounded-t-none lg:rounded-l-[3rem] lg:shadow-2xl relative">
+        <div className="lg:flex-none lg:w-[480px] xl:w-[540px] flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-8 lg:py-12 bg-white lg:bg-slate-50 rounded-t-[2rem] lg:rounded-t-none lg:rounded-l-[3rem] lg:shadow-2xl relative">
           {/* Show logged in state */}
           {currentUser && (
-            <div className="mb-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
               <p className="text-emerald-800 text-sm mb-3">
                 Je bent ingelogd als <strong>{currentUser}</strong>
               </p>
               <a
                 href="/dashboard"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors w-full justify-center"
               >
                 Ga naar Dashboard
                 <ArrowRight className="h-4 w-4" />
