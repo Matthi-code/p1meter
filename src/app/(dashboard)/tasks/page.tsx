@@ -3,11 +3,12 @@
 import { useState, useMemo } from 'react'
 import { useTasks, useCustomers, useTeamMembers } from '@/hooks/useData'
 import * as dataApi from '@/lib/data'
-import { formatDateTime, getStatusLabel, getStatusColor } from '@/lib/utils'
+import { formatDateTime } from '@/lib/utils'
+import { taskStatusConfig } from '@/lib/status'
+import { Card } from '@/components/ui'
 import {
   Plus,
   Search,
-  Filter,
   CheckSquare,
   Clock,
   User,
@@ -17,6 +18,11 @@ import {
   ChevronDown,
   Check,
   Loader2,
+  ChevronRight,
+  ArrowLeft,
+  Trash2,
+  FileText,
+  Building,
 } from 'lucide-react'
 import type { Task, Customer, TeamMember, TaskWithRelations } from '@/types/supabase'
 import type { TaskStatus } from '@/types/database'
@@ -37,21 +43,23 @@ export default function TasksPage() {
   const { data: teamMembers } = useTeamMembers()
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [buddyFilter, setBuddyFilter] = useState<string>('all')
   const [showCompleted, setShowCompleted] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
+  const [activeTask, setActiveTask] = useState<TaskWithRelations | null>(null)
 
-  // Gefilterde taken
+  // Filtered tasks
   const filteredTasks = useMemo(() => {
     if (!tasks) return []
     let result = [...tasks]
 
-    // Verberg voltooide taken
+    // Hide completed tasks
     if (!showCompleted) {
       result = result.filter((t) => t.status !== 'completed')
     }
 
-    // Filter op zoekquery
+    // Filter by search query
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase()
       result = result.filter(
@@ -63,49 +71,62 @@ export default function TasksPage() {
       )
     }
 
-    // Filter op status
+    // Filter by status
     if (statusFilter !== 'all') {
       result = result.filter((t) => t.status === statusFilter)
     }
 
-    // Sorteer op datum
+    // Filter by team member
+    if (buddyFilter !== 'all') {
+      if (buddyFilter === 'unassigned') {
+        result = result.filter((t) => !t.assigned_to)
+      } else {
+        result = result.filter((t) => t.assigned_to === buddyFilter)
+      }
+    }
+
+    // Sort by date
     result.sort(
       (a, b) =>
         new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime()
     )
 
     return result
-  }, [tasks, searchQuery, statusFilter, showCompleted])
+  }, [tasks, searchQuery, statusFilter, buddyFilter, showCompleted])
 
-  // Open modal voor nieuwe taak
+  // Open modal for new task
   function handleAddNew() {
     setEditingTask(null)
     setIsModalOpen(true)
   }
 
-  // Open modal voor bewerken
+  // Open modal for editing
   function handleEdit(task: TaskWithRelations) {
     setEditingTask(task)
     setIsModalOpen(true)
   }
 
-  // Status wijzigen
+  // Change status
   async function handleStatusChange(taskId: string, newStatus: TaskStatus) {
     try {
       await dataApi.updateTask(taskId, { status: newStatus })
       refetch()
+      // Update active task if it's the same
+      if (activeTask?.id === taskId) {
+        setActiveTask({ ...activeTask, status: newStatus })
+      }
     } catch (error) {
       console.error('Error updating status:', error)
       alert('Kon status niet bijwerken')
     }
   }
 
-  // Taak voltooien (quick action)
+  // Complete task (quick action)
   function handleComplete(taskId: string) {
     handleStatusChange(taskId, 'completed')
   }
 
-  // Opslaan taak
+  // Save task
   async function handleSave(taskData: Partial<Task>) {
     try {
       if (editingTask) {
@@ -122,11 +143,14 @@ export default function TasksPage() {
     }
   }
 
-  // Verwijder taak
+  // Delete task
   async function handleDelete(taskId: string) {
     if (confirm('Weet je zeker dat je deze taak wilt verwijderen?')) {
       try {
         await dataApi.deleteTask(taskId)
+        if (activeTask?.id === taskId) {
+          setActiveTask(null)
+        }
         refetch()
       } catch (error) {
         console.error('Error deleting task:', error)
@@ -145,107 +169,188 @@ export default function TasksPage() {
 
   const allTasks = tasks ?? []
 
-  // Statistieken
+  // Statistics
   const stats = {
-    total: allTasks.length,
     pending: allTasks.filter((t) => t.status === 'pending').length,
     inProgress: allTasks.filter((t) => t.status === 'in_progress').length,
     completed: allTasks.filter((t) => t.status === 'completed').length,
-    recurring: allTasks.filter((t) => t.is_recurring).length,
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="h-full flex flex-col max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Taken</h1>
-          <p className="text-sm sm:text-base text-gray-600">Beheer taken en terugkerende activiteiten</p>
+          <h1 className="text-2xl font-bold text-slate-900">Taken</h1>
+          <p className="text-slate-500">Beheer taken en terugkerende activiteiten</p>
         </div>
-        <button
-          onClick={handleAddNew}
-          className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium w-full sm:w-auto"
-        >
+        <button onClick={handleAddNew} className="btn btn-primary">
           <Plus className="h-4 w-4" />
           Nieuwe taak
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Zoeken..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 flex-1 sm:flex-initial">
-            <Filter className="h-4 sm:h-5 w-4 sm:w-5 text-gray-400 flex-shrink-0" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="flex-1 sm:flex-initial px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            >
-              <option value="all">Alle</option>
-              {statusOptions.map((status) => (
-                <option key={status} value={status}>
-                  {getStatusLabel(status)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <label className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 cursor-pointer whitespace-nowrap">
+      {/* Filter section */}
+      <div className="space-y-3 mb-4">
+        {/* Status filter buttons */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-medium text-slate-500 py-1.5">Status:</span>
+          <button
+            onClick={() => setStatusFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              statusFilter === 'all'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Alle ({showCompleted ? allTasks.length : allTasks.filter(t => t.status !== 'completed').length})
+          </button>
+          {statusOptions.map((status) => {
+            const count = allTasks.filter((t) => t.status === status).length
+            if (count === 0 && statusFilter !== status) return null
+            if (status === 'completed' && !showCompleted && statusFilter !== status) return null
+
+            const config = taskStatusConfig[status]
+
+            return (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  statusFilter === status
+                    ? `${config.bg} ${config.text}`
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {config.label} ({count})
+              </button>
+            )
+          })}
+          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer ml-auto">
             <input
               type="checkbox"
               checked={showCompleted}
               onChange={(e) => setShowCompleted(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
             />
-            <span className="hidden sm:inline">Toon voltooide</span>
-            <span className="sm:hidden">Voltooid</span>
+            Toon voltooide
           </label>
         </div>
-      </div>
 
-      {/* Statistieken */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatCard label="Totaal" count={stats.total} color="bg-gray-500" />
-        <StatCard label="Open" count={stats.pending} color="bg-yellow-500" />
-        <StatCard label="Bezig" count={stats.inProgress} color="bg-blue-500" />
-        <StatCard label="Voltooid" count={stats.completed} color="bg-green-500" />
-        <StatCard
-          label="Terugkerend"
-          count={stats.recurring}
-          color="bg-purple-500"
-          icon={<RefreshCw className="h-4 w-4" />}
-        />
-      </div>
+        {/* Team member filter buttons */}
+        <div className="flex flex-wrap gap-2">
+          <span className="text-sm font-medium text-slate-500 py-1.5">
+            <User className="h-4 w-4 inline mr-1" />
+            Persoon:
+          </span>
+          <button
+            onClick={() => setBuddyFilter('all')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              buddyFilter === 'all'
+                ? 'bg-slate-900 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Alle
+          </button>
+          <button
+            onClick={() => setBuddyFilter('unassigned')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              buddyFilter === 'unassigned'
+                ? 'bg-amber-100 text-amber-800'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            Niet toegewezen ({allTasks.filter((t) => !t.assigned_to).length})
+          </button>
+          {teamMembers?.map((member) => {
+            const count = allTasks.filter((t) => t.assigned_to === member.id).length
+            if (count === 0 && buddyFilter !== member.id) return null
 
-      {/* Taken lijst */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="divide-y divide-gray-100">
-          {filteredTasks.length === 0 ? (
-            <div className="px-6 py-12 text-center text-gray-500">
-              Geen taken gevonden
-            </div>
-          ) : (
-            filteredTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                onEdit={() => handleEdit(task)}
-                onComplete={() => handleComplete(task.id)}
-                onStatusChange={(status) => handleStatusChange(task.id, status)}
-                onDelete={() => handleDelete(task.id)}
-              />
-            ))
-          )}
+            return (
+              <button
+                key={member.id}
+                onClick={() => setBuddyFilter(member.id)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  buddyFilter === member.id
+                    ? 'bg-purple-100 text-purple-800'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {member.name.split(' ')[0]} ({count})
+              </button>
+            )
+          })}
         </div>
+      </div>
+
+      {/* Master-Detail Layout */}
+      <div className="flex-1 flex gap-6 min-h-0">
+        {/* Left: Task List - hidden on mobile when detail is shown */}
+        <div className={`flex flex-col ${activeTask ? 'hidden lg:flex lg:w-[400px]' : 'w-full'}`}>
+          {/* Search */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Zoek op titel, beschrijving of persoon..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input pl-10"
+            />
+          </div>
+
+          {/* List */}
+          <Card padding="none" className="flex-1 overflow-hidden">
+            <div className="h-full overflow-y-auto">
+              {filteredTasks.length === 0 ? (
+                <div className="p-8 text-center">
+                  <CheckSquare className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-500">Geen taken gevonden</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {filteredTasks.map((task) => (
+                    <TaskListItem
+                      key={task.id}
+                      task={task}
+                      isActive={activeTask?.id === task.id}
+                      onSelect={() => setActiveTask(task)}
+                      onComplete={() => handleComplete(task.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+
+        {/* Right: Task Detail - full screen on mobile */}
+        {activeTask && (
+          <TaskDetailPanel
+            task={activeTask}
+            onClose={() => setActiveTask(null)}
+            onEdit={() => handleEdit(activeTask)}
+            onStatusChange={(status) => handleStatusChange(activeTask.id, status)}
+            onDelete={() => handleDelete(activeTask.id)}
+            onComplete={() => handleComplete(activeTask.id)}
+          />
+        )}
+
+        {/* Empty state when no task selected (desktop only) */}
+        {!activeTask && (
+          <div className="hidden lg:flex flex-1 items-center justify-center">
+            <Card padding="lg" className="text-center max-w-sm">
+              <CheckSquare className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                Selecteer een taak
+              </h3>
+              <p className="text-slate-500">
+                Klik op een taak in de lijst om de details te bekijken
+              </p>
+            </Card>
+          </div>
+        )}
       </div>
 
       {/* Modal */}
@@ -265,192 +370,317 @@ export default function TasksPage() {
   )
 }
 
-/** Statistiek kaartje */
-function StatCard({
-  label,
-  count,
-  color,
-  icon,
-}: {
-  label: string
-  count: number
-  color: string
-  icon?: React.ReactNode
-}) {
-  return (
-    <div className="bg-white rounded-lg border border-gray-100 p-4">
-      <div className="flex items-center gap-3">
-        <div className={`w-3 h-3 rounded-full ${color}`} />
-        <div className="flex items-center gap-2">
-          <p className="text-xl font-bold text-gray-900">{count}</p>
-          {icon}
-        </div>
-      </div>
-      <p className="text-sm text-gray-500 mt-1">{label}</p>
-    </div>
-  )
-}
-
-/** Taak kaart */
-function TaskCard({
+/** Task list item */
+function TaskListItem({
   task,
-  onEdit,
+  isActive,
+  onSelect,
   onComplete,
-  onStatusChange,
-  onDelete,
 }: {
   task: TaskWithRelations
-  onEdit: () => void
+  isActive: boolean
+  onSelect: () => void
   onComplete: () => void
-  onStatusChange: (status: TaskStatus) => void
-  onDelete: () => void
 }) {
-  const [showStatusMenu, setShowStatusMenu] = useState(false)
+  const config = taskStatusConfig[task.status]
   const isCompleted = task.status === 'completed'
 
   return (
     <div
-      className={`p-3 sm:p-4 hover:bg-gray-50 ${isCompleted ? 'opacity-60' : ''}`}
+      className={`p-4 cursor-pointer transition-colors ${
+        isActive ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'hover:bg-slate-50'
+      } ${isCompleted ? 'opacity-60' : ''}`}
+      onClick={onSelect}
     >
-      <div className="flex items-start gap-3 sm:gap-4">
+      <div className="flex items-start gap-3">
         {/* Checkbox */}
         <button
-          onClick={onComplete}
+          onClick={(e) => {
+            e.stopPropagation()
+            onComplete()
+          }}
           disabled={isCompleted}
           className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
             isCompleted
               ? 'bg-green-500 border-green-500 text-white'
-              : 'border-gray-300 hover:border-blue-500'
+              : 'border-slate-300 hover:border-blue-500'
           }`}
         >
           {isCompleted && <Check className="h-3 w-3" />}
         </button>
 
-        {/* Content */}
+        {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-start sm:items-center gap-2 sm:gap-3 mb-1">
-            <h3
-              className={`font-medium text-sm sm:text-base ${
-                isCompleted ? 'line-through text-gray-500' : 'text-gray-900'
-              }`}
-            >
+          <div className="flex items-center gap-2 mb-1">
+            <p className={`font-medium truncate ${isCompleted ? 'line-through text-slate-500' : 'text-slate-900'}`}>
               {task.title}
-            </h3>
-            <div className="flex items-center gap-2">
-              {task.is_recurring && (
-                <span className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded-full bg-purple-100 text-purple-700">
-                  <RefreshCw className="h-2.5 sm:h-3 w-2.5 sm:w-3" />
-                  <span className="hidden sm:inline">Terugkerend</span>
-                </span>
-              )}
-              <div className="relative">
-                <button
-                  onClick={() => setShowStatusMenu(!showStatusMenu)}
-                  className={`inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-xs font-medium rounded-full ${getStatusColor(
-                    task.status
-                  )}`}
-                >
-                  {getStatusLabel(task.status)}
-                  <ChevronDown className="h-2.5 sm:h-3 w-2.5 sm:w-3" />
-                </button>
+            </p>
+          </div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${config.bg} ${config.text}`}>
+              {config.label}
+            </span>
+            {task.is_recurring && (
+              <span className="flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                <RefreshCw className="h-3 w-3" />
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-slate-500 flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" />
+            {formatDateTime(task.scheduled_at)}
+          </p>
+          {task.assignee && (
+            <p className="text-sm text-slate-500 truncate flex items-center gap-1 mt-0.5">
+              <User className="h-3.5 w-3.5" />
+              {task.assignee.name}
+            </p>
+          )}
+        </div>
 
-                {showStatusMenu && (
-                  <>
-                    <div
-                      className="fixed inset-0 z-10"
-                      onClick={() => setShowStatusMenu(false)}
-                    />
-                    <div className="absolute right-0 sm:left-0 top-full mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[120px]">
-                      {statusOptions.map((status) => (
+        {/* Arrow */}
+        <ChevronRight className="h-5 w-5 text-slate-400 flex-shrink-0" />
+      </div>
+    </div>
+  )
+}
+
+/** Task detail panel */
+function TaskDetailPanel({
+  task,
+  onClose,
+  onEdit,
+  onStatusChange,
+  onDelete,
+  onComplete,
+}: {
+  task: TaskWithRelations
+  onClose: () => void
+  onEdit: () => void
+  onStatusChange: (status: TaskStatus) => void
+  onDelete: () => void
+  onComplete: () => void
+}) {
+  const [showStatusMenu, setShowStatusMenu] = useState(false)
+  const config = taskStatusConfig[task.status]
+  const isCompleted = task.status === 'completed'
+
+  return (
+    <div className="flex-1 flex flex-col lg:max-w-2xl">
+      {/* Mobile back button */}
+      <button
+        onClick={onClose}
+        className="lg:hidden flex items-center gap-2 text-slate-600 mb-4"
+      >
+        <ArrowLeft className="h-5 w-5" />
+        Terug naar lijst
+      </button>
+
+      <Card padding="none" className="flex-1 overflow-hidden flex flex-col">
+        {/* Header */}
+        <div className="p-6 border-b border-slate-100">
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start gap-4">
+              {/* Checkbox */}
+              <button
+                onClick={onComplete}
+                disabled={isCompleted}
+                className={`mt-1 w-6 h-6 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                  isCompleted
+                    ? 'bg-green-500 border-green-500 text-white'
+                    : 'border-slate-300 hover:border-blue-500'
+                }`}
+              >
+                {isCompleted && <Check className="h-4 w-4" />}
+              </button>
+              <div>
+                <h2 className={`text-xl font-bold ${isCompleted ? 'line-through text-slate-500' : 'text-slate-900'}`}>
+                  {task.title}
+                </h2>
+                {task.is_recurring && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700 mt-2">
+                    <RefreshCw className="h-3 w-3" />
+                    Terugkerende taak
+                  </span>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              className="hidden lg:flex p-2 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="h-5 w-5 text-slate-400" />
+            </button>
+          </div>
+
+          {/* Status and actions */}
+          <div className="flex items-center justify-between">
+            <div className="relative">
+              <button
+                onClick={() => setShowStatusMenu(!showStatusMenu)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full font-medium ${config.bg} ${config.text}`}
+              >
+                {config.label}
+                <ChevronDown className="h-4 w-4" />
+              </button>
+
+              {showStatusMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowStatusMenu(false)}
+                  />
+                  <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-100 py-1 z-20 min-w-[160px]">
+                    {statusOptions.map((status) => {
+                      const statusConfig = taskStatusConfig[status]
+                      return (
                         <button
                           key={status}
                           onClick={() => {
                             onStatusChange(status)
                             setShowStatusMenu(false)
                           }}
-                          className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
+                          className={`w-full text-left px-4 py-2 text-sm hover:bg-slate-50 flex items-center gap-2 ${
                             task.status === status
                               ? 'font-medium text-blue-600'
-                              : 'text-gray-700'
+                              : 'text-slate-700'
                           }`}
                         >
-                          {getStatusLabel(status)}
+                          <span className={`w-2 h-2 rounded-full ${statusConfig.dot}`} />
+                          {statusConfig.label}
                         </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onDelete}
+                className="btn btn-ghost text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+              <button onClick={onEdit} className="btn btn-primary">
+                Bewerken
+              </button>
             </div>
           </div>
+        </div>
 
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Description */}
           {task.description && (
-            <p className="text-xs sm:text-sm text-gray-600 mb-2 line-clamp-2">{task.description}</p>
+            <div className="mb-6">
+              <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <FileText className="h-4 w-4 text-slate-500" />
+                Beschrijving
+              </h3>
+              <Card variant="stat" padding="md">
+                <p className="text-slate-700 whitespace-pre-wrap">{task.description}</p>
+              </Card>
+            </div>
           )}
 
-          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-start sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
-            <div className="flex items-center gap-1">
-              <Calendar className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
-              <span className="truncate">{formatDateTime(task.scheduled_at)}</span>
+          {/* Schedule info */}
+          <div className="mb-6">
+            <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-slate-500" />
+              Planning
+            </h3>
+            <Card variant="stat" padding="md">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-slate-500 mb-1">Datum & tijd</p>
+                  <p className="font-medium text-slate-900">
+                    {formatDateTime(task.scheduled_at)}
+                  </p>
+                </div>
+                {task.duration_minutes && (
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Duur</p>
+                    <p className="font-medium text-slate-900">
+                      {task.duration_minutes} min
+                    </p>
+                  </div>
+                )}
+              </div>
+              {task.is_recurring && task.recurrence_rule && (
+                <div className="mt-4 pt-4 border-t border-slate-100">
+                  <p className="text-xs text-slate-500 mb-1">Herhaling</p>
+                  <p className="font-medium text-slate-900 flex items-center gap-2">
+                    <RefreshCw className="h-4 w-4 text-purple-500" />
+                    {recurrenceOptions.find(r => r.value === task.recurrence_rule)?.label || task.recurrence_rule}
+                  </p>
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Assignee */}
+          {task.assignee && (
+            <div className="mb-6">
+              <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <User className="h-4 w-4 text-slate-500" />
+                Toegewezen aan
+              </h3>
+              <Card variant="stat" padding="md">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <User className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900">{task.assignee.name}</p>
+                    {task.assignee.email && (
+                      <p className="text-sm text-slate-500">{task.assignee.email}</p>
+                    )}
+                  </div>
+                </div>
+              </Card>
             </div>
-            {task.duration_minutes && (
-              <div className="flex items-center gap-1">
-                <Clock className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
-                {task.duration_minutes} min
-              </div>
-            )}
-            {task.assignee && (
-              <div className="flex items-center gap-1">
-                <User className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
-                <span className="truncate">{task.assignee.name}</span>
-              </div>
-            )}
-            {task.customer && (
-              <div className="flex items-center gap-1">
-                <CheckSquare className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
-                <span className="truncate">{task.customer.name}</span>
-              </div>
-            )}
-          </div>
+          )}
 
-          {/* Mobile actions */}
-          <div className="flex items-center gap-2 mt-3 sm:hidden">
-            <button
-              onClick={onEdit}
-              className="flex-1 px-3 py-1.5 text-xs text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-200"
-            >
-              Bewerken
-            </button>
-            <button
-              onClick={onDelete}
-              className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg border border-red-200"
-            >
-              Verwijder
-            </button>
-          </div>
-        </div>
+          {/* Linked customer */}
+          {task.customer && (
+            <div className="mb-6">
+              <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
+                <Building className="h-4 w-4 text-slate-500" />
+                Gekoppelde klant
+              </h3>
+              <Card variant="stat" padding="md">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                    <Building className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900">{task.customer.name}</p>
+                    <p className="text-sm text-slate-500">{task.customer.address}, {task.customer.city}</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )}
 
-        {/* Desktop actions */}
-        <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-          <button
-            onClick={onEdit}
-            className="px-3 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded-lg"
-          >
-            Bewerken
-          </button>
-          <button
-            onClick={onDelete}
-            className="px-3 py-1 text-sm text-red-600 hover:bg-red-50 rounded-lg"
-          >
-            Verwijderen
-          </button>
+          {/* Quick complete button (if not completed) */}
+          {!isCompleted && (
+            <button
+              onClick={onComplete}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors"
+            >
+              <Check className="h-5 w-5" />
+              Markeer als voltooid
+            </button>
+          )}
         </div>
-      </div>
+      </Card>
     </div>
   )
 }
 
-/** Taak formulier modal */
+/** Task form modal */
 function TaskModal({
   task,
   customers,
@@ -504,23 +734,26 @@ function TaskModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal max-w-lg w-full mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900">
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h3 className="text-lg font-semibold text-slate-900">
             {task ? 'Taak bewerken' : 'Nieuwe taak'}
           </h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded">
-            <X className="h-5 w-5 text-gray-500" />
+          <button onClick={onClose} className="btn btn-ghost p-2">
+            <X className="h-5 w-5 text-slate-500" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Titel */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Titel *
             </label>
             <input
@@ -530,14 +763,14 @@ function TaskModal({
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, title: e.target.value }))
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input"
               placeholder="Teamoverleg, Voorraad check, etc."
             />
           </div>
 
-          {/* Beschrijving */}
+          {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Beschrijving
             </label>
             <textarea
@@ -546,15 +779,15 @@ function TaskModal({
                 setFormData((prev) => ({ ...prev, description: e.target.value }))
               }
               rows={2}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input resize-none"
               placeholder="Optionele beschrijving..."
             />
           </div>
 
-          {/* Datum en tijd */}
+          {/* Date and time */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Datum *
               </label>
               <input
@@ -567,11 +800,11 @@ function TaskModal({
                     scheduled_date: e.target.value,
                   }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Tijd *
               </label>
               <input
@@ -584,15 +817,15 @@ function TaskModal({
                     scheduled_time: e.target.value,
                   }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input"
               />
             </div>
           </div>
 
-          {/* Duur en toewijzen */}
+          {/* Duration and assignee */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Duur (minuten)
               </label>
               <input
@@ -606,11 +839,11 @@ function TaskModal({
                     duration_minutes: parseInt(e.target.value) || 0,
                   }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Toewijzen aan
               </label>
               <select
@@ -621,7 +854,7 @@ function TaskModal({
                     assigned_to: e.target.value,
                   }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input"
               >
                 <option value="">Niet toegewezen</option>
                 {teamMembers.map((member) => (
@@ -633,9 +866,9 @@ function TaskModal({
             </div>
           </div>
 
-          {/* Klant (optioneel) */}
+          {/* Customer (optional) */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
               Gekoppelde klant (optioneel)
             </label>
             <select
@@ -643,7 +876,7 @@ function TaskModal({
               onChange={(e) =>
                 setFormData((prev) => ({ ...prev, customer_id: e.target.value }))
               }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input"
             >
               <option value="">Geen klant</option>
               {customers.map((customer) => (
@@ -654,7 +887,7 @@ function TaskModal({
             </select>
           </div>
 
-          {/* Terugkerend */}
+          {/* Recurring */}
           <div className="space-y-3">
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -666,9 +899,9 @@ function TaskModal({
                     is_recurring: e.target.checked,
                   }))
                 }
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
-              <span className="text-sm font-medium text-gray-700">
+              <span className="text-sm font-medium text-slate-700">
                 Terugkerende taak
               </span>
             </label>
@@ -682,7 +915,7 @@ function TaskModal({
                     recurrence_rule: e.target.value,
                   }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input"
               >
                 {recurrenceOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -693,10 +926,10 @@ function TaskModal({
             )}
           </div>
 
-          {/* Status (alleen bij bewerken) */}
+          {/* Status (only when editing) */}
           {task && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Status
               </label>
               <select
@@ -704,13 +937,16 @@ function TaskModal({
                 onChange={(e) =>
                   setFormData((prev) => ({ ...prev, status: e.target.value as TaskStatus }))
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="input"
               >
-                {statusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {getStatusLabel(status)}
-                  </option>
-                ))}
+                {statusOptions.map((status) => {
+                  const statusConfig = taskStatusConfig[status]
+                  return (
+                    <option key={status} value={status}>
+                      {statusConfig.label}
+                    </option>
+                  )
+                })}
               </select>
             </div>
           )}
@@ -720,13 +956,13 @@ function TaskModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium"
+              className="btn btn-secondary flex-1"
             >
               Annuleren
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+              className="btn btn-primary flex-1"
             >
               {task ? 'Opslaan' : 'Aanmaken'}
             </button>

@@ -1,37 +1,46 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import { useCustomers, useInstallations } from '@/hooks/useData'
 import { useAuth } from '@/lib/auth'
 import * as dataApi from '@/lib/data'
 import { formatDate } from '@/lib/utils'
 import { geocodeCustomerAddress } from '@/lib/geocoding'
+import { Card } from '@/components/ui'
 import {
   Plus,
   Search,
   Mail,
   Phone,
   MapPin,
+  Map,
   Pencil,
   Trash2,
   X,
   ExternalLink,
   Users,
-  Calendar,
   Wrench,
   Copy,
   Check,
   User,
-  Building,
   FileText,
   Loader2,
-  LayoutGrid,
-  List,
   Camera,
+  Navigation,
+  ChevronRight,
 } from 'lucide-react'
 import type { Customer } from '@/types/supabase'
 
-type ViewMode = 'grid' | 'list'
+// Dynamic import for the map (disable SSR)
+const CustomersMap = dynamic(() => import('@/components/CustomersMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-[400px] bg-slate-100 rounded-2xl flex items-center justify-center animate-pulse">
+      <div className="text-slate-400">Kaart laden...</div>
+    </div>
+  ),
+})
 
 export default function CustomersPage() {
   const { data: customers, isLoading, refetch } = useCustomers()
@@ -41,7 +50,7 @@ export default function CustomersPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
+  const [showMap, setShowMap] = useState(false)
 
   // Gefilterde klanten op basis van zoekquery
   const filteredCustomers = useMemo(() => {
@@ -107,6 +116,10 @@ export default function CustomersPage() {
 
       if (editingCustomer) {
         await dataApi.updateCustomer(editingCustomer.id, customerData)
+        // Update selected customer if it's the one being edited
+        if (selectedCustomer?.id === editingCustomer.id) {
+          setSelectedCustomer({ ...selectedCustomer, ...customerData } as Customer)
+        }
       } else {
         await dataApi.createCustomer(customerData as Omit<Customer, 'id' | 'created_at' | 'updated_at' | 'portal_token'>)
       }
@@ -119,12 +132,8 @@ export default function CustomersPage() {
     }
   }
 
-  // Stats
-  const totalCustomers = customers?.length ?? 0
-  const customersWithInstallations = customers?.filter(
-    (c) => getInstallationCount(c.id) > 0
-  ).length ?? 0
-  const totalInstallations = installations?.length ?? 0
+  // Select first customer if none selected and customers are loaded
+  const activeCustomer = selectedCustomer || (filteredCustomers.length > 0 ? filteredCustomers[0] : null)
 
   if (isLoading) {
     return (
@@ -135,165 +144,94 @@ export default function CustomersPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="h-[calc(100vh-140px)] lg:h-[calc(100vh-120px)] flex flex-col">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+      <div className="flex items-center justify-between gap-4 mb-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900">Klanten</h1>
-          <p className="text-sm sm:text-base text-slate-500">Beheer je klantenbestand</p>
+          <p className="text-sm text-slate-500">{customers?.length || 0} klanten</p>
         </div>
-        <button onClick={handleAddNew} className="btn btn-primary w-full sm:w-auto justify-center">
-          <Plus className="h-4 w-4" />
-          Nieuwe klant
-        </button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-2 sm:gap-4">
-        <div className="card p-3 sm:p-5">
-          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-4">
-            <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-50 to-blue-100">
-              <Users className="h-4 sm:h-6 w-4 sm:w-6 text-blue-600" />
-            </div>
-            <div className="text-center sm:text-left">
-              <p className="text-lg sm:text-2xl font-bold text-slate-900">{totalCustomers}</p>
-              <p className="text-[10px] sm:text-sm text-slate-500">Klanten</p>
-            </div>
-          </div>
-        </div>
-        <div className="card p-3 sm:p-5">
-          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-4">
-            <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100">
-              <Wrench className="h-4 sm:h-6 w-4 sm:w-6 text-emerald-600" />
-            </div>
-            <div className="text-center sm:text-left">
-              <p className="text-lg sm:text-2xl font-bold text-slate-900">{customersWithInstallations}</p>
-              <p className="text-[10px] sm:text-sm text-slate-500">Met install.</p>
-            </div>
-          </div>
-        </div>
-        <div className="card p-3 sm:p-5">
-          <div className="flex flex-col sm:flex-row items-center sm:items-center gap-2 sm:gap-4">
-            <div className="p-2 sm:p-3 rounded-lg sm:rounded-xl bg-gradient-to-br from-violet-50 to-violet-100">
-              <Calendar className="h-4 sm:h-6 w-4 sm:w-6 text-violet-600" />
-            </div>
-            <div className="text-center sm:text-left">
-              <p className="text-lg sm:text-2xl font-bold text-slate-900">{totalInstallations}</p>
-              <p className="text-[10px] sm:text-sm text-slate-500">Installaties</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Zoekbalk en view toggle */}
-      <div className="flex gap-2 sm:gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 sm:h-5 w-4 sm:w-5 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Zoeken..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="input pl-10 sm:pl-12 text-sm"
-          />
-        </div>
-        {/* View toggle */}
-        <div className="flex bg-slate-100 rounded-lg p-1">
+        <div className="flex gap-2">
           <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 sm:p-2.5 rounded-md transition-all ${
-              viewMode === 'grid'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-            title="Blokweergave"
+            onClick={() => setShowMap(!showMap)}
+            className={`btn ${showMap ? 'btn-primary' : 'btn-secondary'}`}
           >
-            <LayoutGrid className="h-4 sm:h-5 w-4 sm:w-5" />
+            <Map className="h-4 w-4" />
+            <span className="hidden sm:inline">Kaart</span>
           </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`p-2 sm:p-2.5 rounded-md transition-all ${
-              viewMode === 'list'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-            title="Lijstweergave"
-          >
-            <List className="h-4 sm:h-5 w-4 sm:w-5" />
+          <button onClick={handleAddNew} className="btn btn-primary">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Nieuwe klant</span>
           </button>
         </div>
       </div>
 
-      {/* Klanten weergave */}
-      {filteredCustomers.length === 0 ? (
-        <div className="card p-12 text-center">
-          <div className="w-16 h-16 mx-auto rounded-full bg-slate-100 flex items-center justify-center mb-4">
-            <Users className="h-8 w-8 text-slate-400" />
-          </div>
-          <p className="text-slate-500">Geen klanten gevonden</p>
-        </div>
-      ) : viewMode === 'grid' ? (
-        /* Grid weergave */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {filteredCustomers.map((customer) => (
-            <CustomerCard
-              key={customer.id}
-              customer={customer}
-              installationCount={getInstallationCount(customer.id)}
-              onSelect={() => setSelectedCustomer(customer)}
-              onEdit={() => handleEdit(customer)}
+      {/* Map view */}
+      {showMap && (
+        <div className="mb-6">
+          <Card padding="none" className="overflow-hidden">
+            <CustomersMap
+              customers={filteredCustomers}
+              onSelectCustomer={(customer) => setSelectedCustomer(customer)}
             />
-          ))}
-        </div>
-      ) : (
-        /* Lijst weergave */
-        <div className="card overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">
-                  Klant
-                </th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">
-                  Contact
-                </th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">
-                  Adres
-                </th>
-                <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">
-                  Installaties
-                </th>
-                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">
-                  Acties
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredCustomers.map((customer) => (
-                <CustomerRow
-                  key={customer.id}
-                  customer={customer}
-                  installationCount={getInstallationCount(customer.id)}
-                  onSelect={() => setSelectedCustomer(customer)}
-                  onEdit={() => handleEdit(customer)}
-                />
-              ))}
-            </tbody>
-          </table>
+          </Card>
         </div>
       )}
 
-      {/* Klant detail sidebar */}
-      {selectedCustomer && (
-        <CustomerDetailSidebar
-          customer={selectedCustomer}
-          installationCount={getInstallationCount(selectedCustomer.id)}
-          onClose={() => setSelectedCustomer(null)}
-          onEdit={() => handleEdit(selectedCustomer)}
-          onDelete={() => handleDelete(selectedCustomer.id)}
-          canDelete={hasRole(['admin'])}
-        />
-      )}
+      {/* Master-Detail Layout */}
+      <div className="flex-1 flex gap-6 min-h-0">
+        {/* Left: Customer List */}
+        <div className={`flex flex-col ${activeCustomer ? 'hidden lg:flex lg:w-[400px]' : 'w-full'} flex-shrink-0`}>
+          {/* Search */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Zoek op naam, adres..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input pl-10 text-sm"
+            />
+          </div>
+
+          {/* Customer List */}
+          <div className="flex-1 overflow-y-auto bg-white rounded-xl border border-slate-200">
+            {filteredCustomers.length === 0 ? (
+              <div className="p-8 text-center">
+                <Users className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500">Geen klanten gevonden</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {filteredCustomers.map((customer) => (
+                  <CustomerListItem
+                    key={customer.id}
+                    customer={customer}
+                    isSelected={activeCustomer?.id === customer.id}
+                    installationCount={getInstallationCount(customer.id)}
+                    onSelect={() => setSelectedCustomer(customer)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right: Customer Detail */}
+        {activeCustomer && (
+          <div className="flex-1 min-w-0">
+            <CustomerDetailPanel
+              customer={activeCustomer}
+              installationCount={getInstallationCount(activeCustomer.id)}
+              onClose={() => setSelectedCustomer(null)}
+              onEdit={() => handleEdit(activeCustomer)}
+              onDelete={() => handleDelete(activeCustomer.id)}
+              canDelete={hasRole(['admin'])}
+              showBackButton={!!selectedCustomer}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Klant modal */}
       {isModalOpen && (
@@ -310,157 +248,83 @@ export default function CustomersPage() {
   )
 }
 
-/** Klant kaart */
-function CustomerCard({
+/** Customer List Item */
+function CustomerListItem({
   customer,
+  isSelected,
   installationCount,
   onSelect,
-  onEdit,
 }: {
   customer: Customer
+  isSelected: boolean
   installationCount: number
   onSelect: () => void
-  onEdit: () => void
 }) {
   return (
     <div
-      className="card p-4 sm:p-5 hover:shadow-lg sm:hover:-translate-y-1 transition-all duration-300 cursor-pointer group"
       onClick={onSelect}
+      className={`flex items-center gap-3 p-3 cursor-pointer transition-colors ${
+        isSelected
+          ? 'bg-blue-50 border-l-4 border-l-blue-500'
+          : 'hover:bg-slate-50 border-l-4 border-l-transparent'
+      }`}
     >
-      <div className="flex items-start justify-between mb-3 sm:mb-4">
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <div className="w-10 sm:w-12 h-10 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-semibold text-sm sm:text-base">
-            {customer.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-          </div>
-          <div>
-            <h3 className="font-semibold text-sm sm:text-base text-slate-900 group-hover:text-blue-600 transition-colors">
-              {customer.name}
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-500">{customer.address}</p>
-          </div>
-        </div>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onEdit()
-          }}
-          className="sm:opacity-0 group-hover:opacity-100 p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-all"
+      {/* Avatar */}
+      <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-semibold text-sm flex-shrink-0 ${
+        isSelected ? 'bg-blue-500' : 'bg-gradient-to-br from-blue-400 to-blue-600'
+      }`}>
+        {customer.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <p className={`font-medium truncate ${isSelected ? 'text-blue-900' : 'text-slate-900'}`}>
+          {customer.name}
+        </p>
+        <p className="text-sm text-slate-500 truncate">{customer.address}</p>
+      </div>
+
+      {/* Quick actions */}
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <a
+          href={`tel:${customer.phone}`}
+          onClick={(e) => e.stopPropagation()}
+          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          title="Bellen"
         >
-          <Pencil className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-slate-500" />
-        </button>
+          <Phone className="h-4 w-4" />
+        </a>
+        <a
+          href={`mailto:${customer.email}`}
+          onClick={(e) => e.stopPropagation()}
+          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          title="E-mail"
+        >
+          <Mail className="h-4 w-4" />
+        </a>
       </div>
 
-      <div className="space-y-1.5 sm:space-y-2">
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-          <Mail className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-slate-400 flex-shrink-0" />
-          <span className="truncate">{customer.email}</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-          <Phone className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-slate-400 flex-shrink-0" />
-          <span>{customer.phone}</span>
-        </div>
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-          <MapPin className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-slate-400 flex-shrink-0" />
-          <span className="truncate">{customer.address}</span>
-        </div>
-      </div>
+      {/* Installation badge */}
+      {installationCount > 0 && (
+        <span className="px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 rounded-full flex-shrink-0">
+          {installationCount}
+        </span>
+      )}
 
-      <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-slate-100 flex items-center justify-between">
-        <span className="text-[10px] sm:text-xs text-slate-500">
-          Sinds {formatDate(customer.created_at)}
-        </span>
-        <span className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full ${
-          installationCount > 0
-            ? 'bg-emerald-50 text-emerald-700'
-            : 'bg-slate-100 text-slate-600'
-        }`}>
-          {installationCount} install.
-        </span>
-      </div>
+      <ChevronRight className="h-4 w-4 text-slate-300 flex-shrink-0 lg:hidden" />
     </div>
   )
 }
 
-/** Klant rij voor lijstweergave */
-function CustomerRow({
-  customer,
-  installationCount,
-  onSelect,
-  onEdit,
-}: {
-  customer: Customer
-  installationCount: number
-  onSelect: () => void
-  onEdit: () => void
-}) {
-  return (
-    <tr
-      className="hover:bg-slate-50 cursor-pointer transition-colors"
-      onClick={onSelect}
-    >
-      {/* Klant */}
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
-            {customer.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <p className="font-medium text-slate-900 truncate">{customer.name}</p>
-            <p className="text-xs text-slate-500 md:hidden truncate">{customer.email}</p>
-          </div>
-        </div>
-      </td>
-
-      {/* Contact - hidden op mobile */}
-      <td className="px-4 py-3 hidden md:table-cell">
-        <div className="space-y-0.5">
-          <p className="text-sm text-slate-600 truncate">{customer.email}</p>
-          <p className="text-xs text-slate-400">{customer.phone}</p>
-        </div>
-      </td>
-
-      {/* Adres - hidden op tablet */}
-      <td className="px-4 py-3 hidden lg:table-cell">
-        <p className="text-sm text-slate-600 truncate">
-          {customer.address}
-        </p>
-      </td>
-
-      {/* Installaties */}
-      <td className="px-4 py-3 text-center">
-        <span className={`inline-flex items-center justify-center min-w-[24px] px-2 py-0.5 text-xs font-medium rounded-full ${
-          installationCount > 0
-            ? 'bg-emerald-50 text-emerald-700'
-            : 'bg-slate-100 text-slate-500'
-        }`}>
-          {installationCount}
-        </span>
-      </td>
-
-      {/* Acties */}
-      <td className="px-4 py-3 text-right">
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            onEdit()
-          }}
-          className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-        >
-          <Pencil className="h-4 w-4 text-slate-400" />
-        </button>
-      </td>
-    </tr>
-  )
-}
-
-/** Klant detail sidebar */
-function CustomerDetailSidebar({
+/** Customer Detail Panel */
+function CustomerDetailPanel({
   customer,
   installationCount,
   onClose,
   onEdit,
   onDelete,
   canDelete = false,
+  showBackButton = false,
 }: {
   customer: Customer
   installationCount: number
@@ -468,9 +332,11 @@ function CustomerDetailSidebar({
   onEdit: () => void
   onDelete: () => void
   canDelete?: boolean
+  showBackButton?: boolean
 }) {
   const [copied, setCopied] = useState(false)
   const portalUrl = `/portal?token=${customer.portal_token}`
+  const hasCoords = customer.latitude && customer.longitude
 
   function handleCopyLink() {
     navigator.clipboard.writeText(window.location.origin + portalUrl)
@@ -479,199 +345,195 @@ function CustomerDetailSidebar({
   }
 
   return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 animate-fadeIn"
-        onClick={onClose}
-      />
+    <div className="h-full bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden">
+      {/* Header with Street View */}
+      <div className="relative">
+        {hasCoords ? (
+          <div className="relative h-48">
+            <img
+              src={`https://maps.googleapis.com/maps/api/streetview?size=800x300&location=${customer.latitude},${customer.longitude}&fov=90&pitch=5&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
+              alt={`Straatbeeld ${customer.address}`}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
 
-      {/* Sidebar */}
-      <div className="fixed inset-y-0 right-0 w-full sm:w-[420px] bg-white shadow-2xl z-50 animate-slideInRight">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-900">Klantdetails</h3>
-          <button onClick={onClose} className="btn btn-ghost p-2">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6 overflow-y-auto h-[calc(100%-160px)]">
-          {/* Klant header */}
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-xl">
-              {customer.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-slate-900">{customer.name}</h2>
-              <p className="text-sm text-slate-500">
-                Klant sinds {formatDate(customer.created_at)}
-              </p>
-            </div>
-          </div>
-
-          {/* Contact */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <User className="h-4 w-4" />
-              Contactgegevens
-            </h4>
-            <div className="bg-slate-50 rounded-xl p-4 space-y-3">
-              <a
-                href={`mailto:${customer.email}`}
-                className="flex items-center gap-3 text-sm text-slate-700 hover:text-blue-600 transition-colors"
+            {/* Back button (mobile) */}
+            {showBackButton && (
+              <button
+                onClick={onClose}
+                className="lg:hidden absolute top-3 left-3 p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm"
               >
-                <Mail className="h-4 w-4 text-slate-400" />
-                {customer.email}
-              </a>
-              <a
-                href={`tel:${customer.phone}`}
-                className="flex items-center gap-3 text-sm text-slate-700 hover:text-blue-600 transition-colors"
-              >
-                <Phone className="h-4 w-4 text-slate-400" />
-                {customer.phone}
-              </a>
-            </div>
-          </div>
-
-          {/* Adres */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <Building className="h-4 w-4" />
-              Adres
-            </h4>
-            <div className="bg-slate-50 rounded-xl p-4">
-              <div className="flex items-start gap-3 text-sm text-slate-700">
-                <MapPin className="h-4 w-4 text-slate-400 mt-0.5" />
-                <div>
-                  <p>{customer.address}</p>
-                  <p>{customer.postal_code} {customer.city}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Street View */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <Camera className="h-4 w-4" />
-              Straatbeeld
-            </h4>
-            {customer.latitude && customer.longitude ? (
-              <div className="rounded-xl overflow-hidden border border-slate-200">
-                <a
-                  href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${customer.latitude},${customer.longitude}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block hover:opacity-90 transition-opacity"
-                >
-                  <img
-                    src={`https://maps.googleapis.com/maps/api/streetview?size=400x200&location=${customer.latitude},${customer.longitude}&fov=80&pitch=10&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
-                    alt={`Straatbeeld ${customer.address}`}
-                    className="w-full h-[150px] object-cover"
-                  />
-                </a>
-                <div className="bg-slate-50 px-3 py-2 text-xs text-slate-500 text-center">
-                  Klik voor 360° weergave
-                </div>
-              </div>
-            ) : (
-              <div className="bg-slate-50 rounded-xl p-4 text-center">
-                <p className="text-sm text-slate-400">Geen locatie beschikbaar</p>
-              </div>
+                <X className="h-5 w-5 text-slate-600" />
+              </button>
             )}
-          </div>
 
-          {/* Statistieken */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <Wrench className="h-4 w-4" />
-              Statistieken
-            </h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-slate-50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-slate-900">{installationCount}</p>
-                <p className="text-xs text-slate-500">Installaties</p>
+            {/* Street View link */}
+            <a
+              href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${customer.latitude},${customer.longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-lg shadow-sm hover:bg-white transition-colors"
+              title="Open 360° weergave"
+            >
+              <Camera className="h-5 w-5 text-slate-600" />
+            </a>
+
+            {/* Customer info overlay */}
+            <div className="absolute bottom-0 left-0 right-0 p-4">
+              <h2 className="text-xl font-bold text-white">{customer.name}</h2>
+              <p className="text-white/80 text-sm">{customer.address}, {customer.city}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="p-4 border-b border-slate-100">
+            {showBackButton && (
+              <button
+                onClick={onClose}
+                className="lg:hidden mb-3 p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5 text-slate-600" />
+              </button>
+            )}
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-lg">
+                {customer.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
               </div>
-              <div className="bg-slate-50 rounded-xl p-4 text-center">
-                <p className="text-2xl font-bold text-slate-900">
-                  {installationCount > 0 ? '100%' : '0%'}
-                </p>
-                <p className="text-xs text-slate-500">Voltooid</p>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">{customer.name}</h2>
+                <p className="text-slate-500 text-sm">{customer.address}, {customer.city}</p>
               </div>
             </div>
           </div>
+        )}
+      </div>
 
-          {/* Portal link */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <ExternalLink className="h-4 w-4" />
-              Klantportaal
-            </h4>
-            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-              <p className="text-xs text-blue-700 mb-3">
-                Deel deze link met de klant voor toegang tot hun portaal:
-              </p>
-              <div className="flex items-center gap-2">
-                <code className="flex-1 text-xs bg-white px-3 py-2 rounded-lg border border-blue-200 text-slate-700 truncate">
-                  {typeof window !== 'undefined' ? window.location.origin + portalUrl : portalUrl}
-                </code>
-                <button
-                  onClick={handleCopyLink}
-                  className={`p-2 rounded-lg transition-all ${
-                    copied
-                      ? 'bg-emerald-100 text-emerald-600'
-                      : 'bg-white border border-blue-200 text-blue-600 hover:bg-blue-100'
-                  }`}
-                  title="Kopieer link"
-                >
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </button>
-                <button
-                  onClick={() => window.open(portalUrl, '_blank')}
-                  className="p-2 rounded-lg bg-white border border-blue-200 text-blue-600 hover:bg-blue-100 transition-all"
-                  title="Bekijk portal"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Notities */}
-          {customer.notes && (
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Notities
-              </h4>
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
-                <p className="text-sm text-amber-800">{customer.notes}</p>
-              </div>
-            </div>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Quick actions */}
+        <div className="grid grid-cols-3 gap-2">
+          <a
+            href={`tel:${customer.phone}`}
+            className="flex flex-col items-center gap-1.5 p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
+          >
+            <Phone className="h-5 w-5 text-blue-600" />
+            <span className="text-xs font-medium text-slate-700">Bellen</span>
+          </a>
+          <a
+            href={`mailto:${customer.email}`}
+            className="flex flex-col items-center gap-1.5 p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
+          >
+            <Mail className="h-5 w-5 text-blue-600" />
+            <span className="text-xs font-medium text-slate-700">E-mail</span>
+          </a>
+          {hasCoords && (
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${customer.latitude},${customer.longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col items-center gap-1.5 p-3 bg-slate-50 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              <Navigation className="h-5 w-5 text-blue-600" />
+              <span className="text-xs font-medium text-slate-700">Route</span>
+            </a>
           )}
         </div>
 
-        {/* Actions */}
-        <div className="absolute bottom-0 left-0 right-0 p-6 border-t border-slate-100 bg-white">
-          <div className="flex gap-3">
-            <button onClick={onEdit} className="btn btn-primary flex-1">
-              <Pencil className="h-4 w-4" />
-              Bewerken
-            </button>
-            {canDelete && (
-              <button
-                onClick={onDelete}
-                className="btn p-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
+        {/* Contact info */}
+        <div className="bg-slate-50 rounded-xl p-4 space-y-3">
+          <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Contactgegevens
+          </h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-3 text-slate-600">
+              <Mail className="h-4 w-4 text-slate-400" />
+              <span>{customer.email}</span>
+            </div>
+            <div className="flex items-center gap-3 text-slate-600">
+              <Phone className="h-4 w-4 text-slate-400" />
+              <span>{customer.phone}</span>
+            </div>
+            <div className="flex items-start gap-3 text-slate-600">
+              <MapPin className="h-4 w-4 text-slate-400 mt-0.5" />
+              <div>
+                <p>{customer.address}</p>
+                <p>{customer.postal_code} {customer.city}</p>
+              </div>
+            </div>
           </div>
         </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-slate-50 rounded-xl p-4 text-center">
+            <p className="text-2xl font-bold text-slate-900">{installationCount}</p>
+            <p className="text-xs text-slate-500">Installaties</p>
+          </div>
+          <div className="bg-slate-50 rounded-xl p-4 text-center">
+            <p className="text-sm text-slate-500">Klant sinds</p>
+            <p className="font-medium text-slate-900">{formatDate(customer.created_at)}</p>
+          </div>
+        </div>
+
+        {/* Portal link */}
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-3">
+            <ExternalLink className="h-4 w-4 text-blue-600" />
+            <h3 className="text-sm font-semibold text-blue-800">Klantportaal</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-xs bg-white px-3 py-2 rounded-lg border border-blue-200 text-slate-600 truncate">
+              {typeof window !== 'undefined' ? window.location.origin + portalUrl : portalUrl}
+            </code>
+            <button
+              onClick={handleCopyLink}
+              className={`p-2 rounded-lg transition-all ${
+                copied
+                  ? 'bg-emerald-100 text-emerald-600'
+                  : 'bg-white border border-blue-200 text-blue-600 hover:bg-blue-100'
+              }`}
+              title="Kopieer"
+            >
+              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            </button>
+            <button
+              onClick={() => window.open(portalUrl, '_blank')}
+              className="p-2 bg-white border border-blue-200 text-blue-600 hover:bg-blue-100 rounded-lg transition-all"
+              title="Open"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Notes */}
+        {customer.notes && (
+          <div className="bg-amber-50 border border-amber-100 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="h-4 w-4 text-amber-600" />
+              <h3 className="text-sm font-semibold text-amber-800">Notities</h3>
+            </div>
+            <p className="text-sm text-amber-700">{customer.notes}</p>
+          </div>
+        )}
       </div>
-    </>
+
+      {/* Footer actions */}
+      <div className="p-4 border-t border-slate-100 flex gap-2">
+        <button onClick={onEdit} className="btn btn-primary flex-1">
+          <Pencil className="h-4 w-4" />
+          Bewerken
+        </button>
+        {canDelete && (
+          <button
+            onClick={onDelete}
+            className="btn p-2.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-100"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+    </div>
   )
 }
 
