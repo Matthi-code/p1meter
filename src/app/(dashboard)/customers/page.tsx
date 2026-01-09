@@ -27,6 +27,7 @@ import {
   Loader2,
   LayoutGrid,
   List,
+  Camera,
 } from 'lucide-react'
 import type { Customer } from '@/types/supabase'
 
@@ -549,6 +550,37 @@ function CustomerDetailSidebar({
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Street View */}
+          <div className="space-y-3">
+            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+              <Camera className="h-4 w-4" />
+              Straatbeeld
+            </h4>
+            {customer.latitude && customer.longitude ? (
+              <div className="rounded-xl overflow-hidden border border-slate-200">
+                <a
+                  href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${customer.latitude},${customer.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block hover:opacity-90 transition-opacity"
+                >
+                  <img
+                    src={`https://maps.googleapis.com/maps/api/streetview?size=400x200&location=${customer.latitude},${customer.longitude}&fov=80&pitch=10&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
+                    alt={`Straatbeeld ${customer.address}`}
+                    className="w-full h-[150px] object-cover"
+                  />
+                </a>
+                <div className="bg-slate-50 px-3 py-2 text-xs text-slate-500 text-center">
+                  Klik voor 360° weergave
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-50 rounded-xl p-4 text-center">
+                <p className="text-sm text-slate-400">Geen locatie beschikbaar</p>
+              </div>
+            )}
           </div>
 
           {/* Statistieken */}
