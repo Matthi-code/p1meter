@@ -31,6 +31,7 @@ import {
   Loader2,
   ArrowUpDown,
   ExternalLink,
+  Camera,
 } from 'lucide-react'
 import type { Installation, Customer, TeamMember, SmartMeter, InstallationWithRelations } from '@/types/supabase'
 import type { InstallationStatus } from '@/types/database'
@@ -115,7 +116,7 @@ export default function InstallationsPage() {
           comparison = (a.customer?.name || '').localeCompare(b.customer?.name || '')
           break
         case 'city':
-          comparison = (a.customer?.city || '').localeCompare(b.customer?.city || '')
+          comparison = (a.customer?.address || '').localeCompare(b.customer?.address || '')
           break
         case 'status':
           comparison = statusOptions.indexOf(a.status) - statusOptions.indexOf(b.status)
@@ -412,7 +413,7 @@ export default function InstallationsPage() {
                         onClick={() => toggleSort('city')}
                         className="flex items-center gap-1 text-xs font-semibold text-slate-600 uppercase tracking-wider hover:text-slate-900"
                       >
-                        Plaats
+                        Adres
                         {sortField === 'city' && (sortDirection === 'asc' ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
                       </button>
                     </th>
@@ -449,10 +450,10 @@ export default function InstallationsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-sm font-medium text-slate-900">{installation.customer?.name}</div>
-                        <div className="text-xs text-slate-500 md:hidden">{installation.customer?.city}</div>
+                        <div className="text-xs text-slate-500 md:hidden">{installation.customer?.address}</div>
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-600 hidden md:table-cell">
-                        {installation.customer?.city}
+                        {installation.customer?.address}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(installation.status)}`}>
@@ -646,6 +647,28 @@ function InstallationDetail({
             )}
           </div>
 
+          {/* Street View */}
+          {installation.customer?.latitude && installation.customer?.longitude && (
+            <div className="rounded-xl overflow-hidden border border-[var(--gray-200)]">
+              <a
+                href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${installation.customer.latitude},${installation.customer.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block hover:opacity-90 transition-opacity"
+              >
+                <img
+                  src={`https://maps.googleapis.com/maps/api/streetview?size=400x180&location=${installation.customer.latitude},${installation.customer.longitude}&fov=80&pitch=10&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`}
+                  alt={`Straatbeeld ${installation.customer.address}`}
+                  className="w-full h-[140px] object-cover"
+                />
+              </a>
+              <div className="bg-[var(--gray-50)] px-3 py-1.5 text-xs text-[var(--gray-500)] text-center flex items-center justify-center gap-1">
+                <Camera className="h-3 w-3" />
+                Klik voor 360° weergave
+              </div>
+            </div>
+          )}
+
           {/* Afspraak info */}
           <div className="bg-[var(--gray-50)] rounded-xl p-4 space-y-3">
             <div className="flex items-center gap-3">
@@ -838,7 +861,7 @@ function InstallationCard({
             </div>
             <div className="flex items-center gap-1 col-span-2 sm:col-span-1">
               <MapPin className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
-              <span className="truncate">{installation.customer?.city}</span>
+              <span className="truncate">{installation.customer?.address}</span>
             </div>
             <div className="flex items-center gap-1 col-span-2 sm:col-span-1">
               <User className="h-3.5 sm:h-4 w-3.5 sm:w-4 flex-shrink-0" />
@@ -949,7 +972,7 @@ function InstallationModal({
               <option value="">Selecteer klant...</option>
               {customers.map((customer) => (
                 <option key={customer.id} value={customer.id}>
-                  {customer.name} - {customer.city}
+                  {customer.name} - {customer.address}
                 </option>
               ))}
             </select>
