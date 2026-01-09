@@ -5,6 +5,7 @@ import { useCustomers, useInstallations } from '@/hooks/useData'
 import { useAuth } from '@/lib/auth'
 import * as dataApi from '@/lib/data'
 import { formatDate } from '@/lib/utils'
+import { geocodeCustomerAddress } from '@/lib/geocoding'
 import {
   Plus,
   Search,
@@ -91,6 +92,18 @@ export default function CustomersPage() {
   // Opslaan klant (nieuw of bewerken)
   async function handleSave(customerData: Partial<Customer>) {
     try {
+      // Automatisch geocoden als adres of postcode is ingevuld
+      if (customerData.postal_code && customerData.address) {
+        const coords = await geocodeCustomerAddress(
+          customerData.postal_code,
+          customerData.address
+        )
+        if (coords) {
+          customerData.latitude = coords.latitude
+          customerData.longitude = coords.longitude
+        }
+      }
+
       if (editingCustomer) {
         await dataApi.updateCustomer(editingCustomer.id, customerData)
       } else {
@@ -244,7 +257,7 @@ export default function CustomersPage() {
                   Contact
                 </th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">
-                  Locatie
+                  Adres
                 </th>
                 <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wider px-4 py-3">
                   Installaties
@@ -322,7 +335,7 @@ function CustomerCard({
             <h3 className="font-semibold text-sm sm:text-base text-slate-900 group-hover:text-blue-600 transition-colors">
               {customer.name}
             </h3>
-            <p className="text-xs sm:text-sm text-slate-500">{customer.city}</p>
+            <p className="text-xs sm:text-sm text-slate-500">{customer.address}</p>
           </div>
         </div>
         <button
@@ -405,10 +418,10 @@ function CustomerRow({
         </div>
       </td>
 
-      {/* Locatie - hidden op tablet */}
+      {/* Adres - hidden op tablet */}
       <td className="px-4 py-3 hidden lg:table-cell">
         <p className="text-sm text-slate-600 truncate">
-          {customer.city}
+          {customer.address}
         </p>
       </td>
 
