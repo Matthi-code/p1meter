@@ -30,9 +30,10 @@ import {
   ChevronRight,
   ArrowLeft,
 } from 'lucide-react'
-import type { Installation, Customer, TeamMember, SmartMeter, InstallationWithRelations, ChecklistData } from '@/types/supabase'
-import type { InstallationStatus } from '@/types/database'
+import type { Installation, Customer, TeamMember, SmartMeter, InstallationWithRelations, ChecklistData, CustomerPhoto } from '@/types/supabase'
+import type { InstallationStatus, PhotoType } from '@/types/database'
 import { InstallationChecklist } from '@/components/InstallationChecklist'
+import { InstallationPhotos } from '@/components/InstallationPhotos'
 
 // Dynamic import for the map (disable SSR)
 const InstallationsMap = dynamic(() => import('@/components/InstallationsMap'), {
@@ -809,6 +810,12 @@ function InstallationDetailPanel({
             checklistData={installation.checklist_data}
             onUpdate={onChecklistUpdate}
             readOnly={installation.status === 'completed' || installation.status === 'cancelled'}
+          />
+
+          {/* Installation Photos */}
+          <InstallationPhotos
+            installationId={installation.id}
+            readOnly={installation.status === 'cancelled'}
           />
         </div>
       </Card>
