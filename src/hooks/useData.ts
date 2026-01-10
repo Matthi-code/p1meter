@@ -117,6 +117,13 @@ export function useSmartMeters() {
 }
 
 // ============================================
+// Evaluations Hooks
+// ============================================
+export function useEvaluations() {
+  return useQuery(() => data.getEvaluations())
+}
+
+// ============================================
 // Dashboard Hooks
 // ============================================
 export function useDashboardStats() {

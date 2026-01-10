@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Zap, Home, BarChart3, Coins, Map, Camera, HelpCircle, AlertCircle, Loader2, Menu, X, User } from 'lucide-react'
+import { Zap, Home, BarChart3, Coins, Map, Camera, HelpCircle, AlertCircle, Loader2, Menu, X, User, Star } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 type CustomerData = {
@@ -37,6 +37,7 @@ const navItems: NavItem[] = [
   { href: '/portal/subsidies', label: 'Subsidies', icon: <Coins className="h-5 w-5" /> },
   { href: '/portal/actieplan', label: 'Actieplan', icon: <Map className="h-5 w-5" /> },
   { href: '/portal/upload', label: "Foto's", icon: <Camera className="h-5 w-5" /> },
+  { href: '/portal/evaluate', label: 'Evaluatie', icon: <Star className="h-5 w-5" /> },
   { href: '/portal/issues', label: 'Hulp', icon: <HelpCircle className="h-5 w-5" /> },
 ]
 

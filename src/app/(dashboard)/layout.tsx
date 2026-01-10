@@ -25,6 +25,7 @@ import {
   User,
   Clock,
   HelpCircle,
+  Star,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { MobileBottomNav } from '@/components/MobileBottomNav'
@@ -89,6 +90,11 @@ function getNavItems(role: string): NavItem[] {
       href: '/tasks',
       label: 'Taken',
       icon: <CheckSquare className="h-5 w-5" />,
+    },
+    {
+      href: '/evaluations',
+      label: 'Evaluaties',
+      icon: <Star className="h-5 w-5" />,
     },
   ]
 

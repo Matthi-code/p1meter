@@ -563,6 +563,26 @@ export async function getEvaluationsByCustomer(customerId: string) {
   return data as Evaluation[]
 }
 
+export async function getEvaluations() {
+  const { data, error } = await supabase
+    .from('evaluations')
+    .select(`
+      *,
+      customer:customers(*),
+      installation:installations(
+        *,
+        assignee:team_members(*)
+      )
+    `)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data as (Evaluation & {
+    customer: Customer
+    installation: Installation & { assignee: TeamMember | null }
+  })[]
+}
+
 // ============================================
 // Issues
 // ============================================
