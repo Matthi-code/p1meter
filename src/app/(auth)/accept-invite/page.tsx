@@ -31,7 +31,7 @@ export default function AcceptInvitePage() {
         const refreshToken = params.get('refresh_token')
         const type = params.get('type')
 
-        if (accessToken && refreshToken && type === 'invite') {
+        if (accessToken && refreshToken && (type === 'invite' || type === 'recovery')) {
           // Set the session manually
           const { data, error } = await supabase.auth.setSession({
             access_token: accessToken,

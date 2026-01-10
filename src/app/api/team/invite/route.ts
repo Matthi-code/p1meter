@@ -41,84 +41,139 @@ export async function POST(request: NextRequest) {
     const supabase = getAdminClient()
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-    // 1. Check of user al bestaat
-    const { data: existingUsers } = await supabase
+    // 1. Check of er een ACTIEF team_member bestaat
+    const { data: existingTeamMember } = await supabase
       .from('team_members')
-      .select('id')
+      .select('id, active, user_id')
       .eq('email', email)
-      .limit(1)
+      .single()
 
-    if (existingUsers && existingUsers.length > 0) {
+    if (existingTeamMember?.active) {
       return NextResponse.json(
-        { error: 'Dit e-mailadres is al geregistreerd' },
+        { error: 'Dit e-mailadres is al geregistreerd als actief teamlid' },
         { status: 400 }
       )
     }
 
-    // 2. Genereer invite link (zonder automatische email)
-    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
-      type: 'invite',
-      email,
-      options: {
-        data: {
-          name,
-          role,
+    // 2. Check of er een auth user bestaat (via listUsers)
+    const { data: authUsers } = await supabase.auth.admin.listUsers()
+    const existingAuthUser = authUsers?.users?.find(u => u.email === email)
+
+    let userId: string
+    let inviteLink: string
+
+    if (existingAuthUser) {
+      // Auth user bestaat al - genereer een recovery link (voor wachtwoord reset)
+      userId = existingAuthUser.id
+
+      const { data: recoveryData, error: recoveryError } = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+        options: {
+          redirectTo: `${appUrl}/accept-invite`,
         },
-        redirectTo: `${appUrl}/accept-invite`,
-      },
-    })
+      })
 
-    if (linkError) {
-      console.error('Link generation error:', linkError)
-
-      if (linkError.message.includes('already been registered')) {
+      if (recoveryError) {
+        console.error('Recovery link error:', recoveryError)
         return NextResponse.json(
-          { error: 'Dit e-mailadres is al geregistreerd in het systeem' },
-          { status: 400 }
+          { error: `Kon herstellink niet genereren: ${recoveryError.message}` },
+          { status: 500 }
         )
       }
 
-      return NextResponse.json(
-        { error: `Kon uitnodigingslink niet genereren: ${linkError.message}` },
-        { status: 500 }
-      )
-    }
+      inviteLink = recoveryData.properties.action_link
 
-    if (!linkData.user) {
-      return NextResponse.json(
-        { error: 'Geen gebruiker aangemaakt' },
-        { status: 500 }
-      )
-    }
-
-    // 3. Maak team_members record aan
-    const { data: teamMember, error: teamError } = await supabase
-      .from('team_members')
-      .insert({
-        user_id: linkData.user.id,
-        name,
-        email,
-        role,
-        active: true,
+      // Update user metadata
+      await supabase.auth.admin.updateUserById(userId, {
+        user_metadata: { name, role },
       })
-      .select()
-      .single()
 
-    if (teamError) {
-      console.error('Team member error:', teamError)
+    } else {
+      // Nieuwe auth user - genereer invite link
+      const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+        type: 'invite',
+        email,
+        options: {
+          data: {
+            name,
+            role,
+          },
+          redirectTo: `${appUrl}/accept-invite`,
+        },
+      })
 
-      // Probeer de auth user te verwijderen als team_member insert faalt
-      await supabase.auth.admin.deleteUser(linkData.user.id)
+      if (linkError) {
+        console.error('Link generation error:', linkError)
+        return NextResponse.json(
+          { error: `Kon uitnodigingslink niet genereren: ${linkError.message}` },
+          { status: 500 }
+        )
+      }
 
-      return NextResponse.json(
-        { error: `Kon teamlid niet aanmaken: ${teamError.message}` },
-        { status: 500 }
-      )
+      if (!linkData.user) {
+        return NextResponse.json(
+          { error: 'Geen gebruiker aangemaakt' },
+          { status: 500 }
+        )
+      }
+
+      userId = linkData.user.id
+      inviteLink = linkData.properties.action_link
     }
 
-    // 4. Gebruik de action_link (die al de tokens bevat)
-    // De action_link gaat via Supabase, die redirect naar onze app met tokens in de hash
-    const inviteLink = linkData.properties.action_link
+    // 3. Maak of update team_members record
+    let teamMember
+
+    if (existingTeamMember) {
+      // Reactiveer bestaand teamlid
+      const { data, error } = await supabase
+        .from('team_members')
+        .update({
+          name,
+          role,
+          active: true,
+          user_id: userId,
+        })
+        .eq('id', existingTeamMember.id)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Team member update error:', error)
+        return NextResponse.json(
+          { error: `Kon teamlid niet bijwerken: ${error.message}` },
+          { status: 500 }
+        )
+      }
+      teamMember = data
+    } else {
+      // Maak nieuw teamlid
+      const { data, error } = await supabase
+        .from('team_members')
+        .insert({
+          user_id: userId,
+          name,
+          email,
+          role,
+          active: true,
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Team member insert error:', error)
+        // Als insert faalt en we hebben een nieuwe auth user gemaakt, verwijder deze
+        if (!existingAuthUser) {
+          await supabase.auth.admin.deleteUser(userId)
+        }
+        return NextResponse.json(
+          { error: `Kon teamlid niet aanmaken: ${error.message}` },
+          { status: 500 }
+        )
+      }
+      teamMember = data
+    }
 
     // 5. Genereer Nederlandse email tekst
     const emailSubject = 'Uitnodiging voor p1Meter Installaties'
