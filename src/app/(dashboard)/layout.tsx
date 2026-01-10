@@ -26,6 +26,7 @@ import {
   Clock,
   HelpCircle,
   Star,
+  FileText,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { MobileBottomNav } from '@/components/MobileBottomNav'
@@ -98,12 +99,17 @@ function getNavItems(role: string): NavItem[] {
     },
   ]
 
-  // Admin also sees Team management
+  // Admin also sees Team management and CMS
   if (role === 'admin') {
     items.push({
       href: '/team',
       label: 'Team',
       icon: <UserCog className="h-5 w-5" />,
+    })
+    items.push({
+      href: '/cms',
+      label: 'Content',
+      icon: <FileText className="h-5 w-5" />,
     })
   }
 
