@@ -6,6 +6,7 @@ const publicRoutes = [
   '/',
   '/login',
   '/reset-password',
+  '/accept-invite',  // Invite acceptance page (handles tokens in URL hash)
   '/faq',
   '/over',
   '/instructions',
@@ -14,7 +15,7 @@ const publicRoutes = [
 ]
 
 // Routes die alleen voor specifieke rollen zijn
-const dashboardRoutes = ['/dashboard', '/calendar', '/installations', '/tasks', '/customers', '/team']
+const dashboardRoutes = ['/dashboard', '/calendar', '/installations', '/tasks', '/customers', '/team', '/evaluations', '/today']
 const portalRoutes = ['/portal']
 const adminOnlyRoutes = ['/team']
 

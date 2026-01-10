@@ -24,6 +24,9 @@ import {
   ChevronDown,
   Trash2,
   Users,
+  Copy,
+  Check,
+  ExternalLink,
 } from 'lucide-react'
 import type { TeamMember, InstallationWithRelations } from '@/types/supabase'
 import type { UserRole } from '@/types/database'
@@ -57,6 +60,14 @@ const roleConfig: Record<UserRole, { label: string; bg: string; text: string; de
   },
 }
 
+type InviteData = {
+  inviteLink: string
+  emailSubject: string
+  emailBody: string
+  memberName: string
+  memberEmail: string
+}
+
 export default function TeamPage() {
   const { data: teamMembers, isLoading, refetch } = useTeamMembers()
   const { data: installations } = useInstallations()
@@ -65,6 +76,7 @@ export default function TeamPage() {
   const [activeMember, setActiveMember] = useState<TeamMember | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
+  const [inviteData, setInviteData] = useState<InviteData | null>(null)
 
   // Get installations for a member
   function getMemberInstallations(memberId: string): InstallationWithRelations[] {
@@ -165,6 +177,8 @@ export default function TeamPage() {
     try {
       if (editingMember) {
         await dataApi.updateTeamMember(editingMember.id, memberData)
+        setIsModalOpen(false)
+        setEditingMember(null)
       } else {
         const response = await fetch('/api/team/invite', {
           method: 'POST',
@@ -182,10 +196,17 @@ export default function TeamPage() {
           throw new Error(result.error || 'Kon teamlid niet aanmaken')
         }
 
-        alert(`Uitnodiging verstuurd naar ${memberData.email}`)
+        // Show invite link modal
+        setInviteData({
+          inviteLink: result.inviteLink,
+          emailSubject: result.emailSubject,
+          emailBody: result.emailBody,
+          memberName: memberData.name || '',
+          memberEmail: memberData.email || '',
+        })
+        setIsModalOpen(false)
+        setEditingMember(null)
       }
-      setIsModalOpen(false)
-      setEditingMember(null)
       refetch()
     } catch (error) {
       console.error('Error saving member:', error)
@@ -330,6 +351,14 @@ export default function TeamPage() {
             setEditingMember(null)
           }}
           onSave={handleSave}
+        />
+      )}
+
+      {/* Invite Link Modal */}
+      {inviteData && (
+        <InviteLinkModal
+          inviteData={inviteData}
+          onClose={() => setInviteData(null)}
         />
       )}
     </div>
@@ -770,6 +799,154 @@ function TeamMemberModal({
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+/** Invite Link Modal - shows the invite link and email template */
+function InviteLinkModal({
+  inviteData,
+  onClose,
+}: {
+  inviteData: InviteData
+  onClose: () => void
+}) {
+  const [copiedLink, setCopiedLink] = useState(false)
+  const [copiedEmail, setCopiedEmail] = useState(false)
+
+  async function copyToClipboard(text: string, type: 'link' | 'email') {
+    try {
+      await navigator.clipboard.writeText(text)
+      if (type === 'link') {
+        setCopiedLink(true)
+        setTimeout(() => setCopiedLink(false), 2000)
+      } else {
+        setCopiedEmail(true)
+        setTimeout(() => setCopiedEmail(false), 2000)
+      }
+    } catch (error) {
+      console.error('Copy failed:', error)
+    }
+  }
+
+  // Create mailto link
+  const mailtoLink = `mailto:${inviteData.memberEmail}?subject=${encodeURIComponent(inviteData.emailSubject)}&body=${encodeURIComponent(inviteData.emailBody)}`
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">
+              Teamlid uitgenodigd
+            </h3>
+            <p className="text-sm text-slate-500 mt-1">
+              Stuur de uitnodiging naar {inviteData.memberName}
+            </p>
+          </div>
+          <button onClick={onClose} className="btn btn-ghost p-2">
+            <X className="h-5 w-5 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-6">
+          {/* Quick action: Open email client */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <Mail className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-medium text-blue-900">Snelle actie</h4>
+                <p className="text-sm text-blue-700 mt-1">
+                  Klik op de knop om je e-mailprogramma te openen met de uitnodiging.
+                </p>
+                <a
+                  href={mailtoLink}
+                  className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Open in e-mail
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Invite link */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Uitnodigingslink
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                readOnly
+                value={inviteData.inviteLink}
+                className="input flex-1 font-mono text-xs bg-slate-50"
+              />
+              <button
+                onClick={() => copyToClipboard(inviteData.inviteLink, 'link')}
+                className={`btn ${copiedLink ? 'bg-emerald-600 text-white' : 'btn-secondary'} px-4`}
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Gekopieerd
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    Kopieer
+                  </>
+                )}
+              </button>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Deze link is 24 uur geldig.
+            </p>
+          </div>
+
+          {/* Email template */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-slate-700">
+                E-mail template (Nederlands)
+              </label>
+              <button
+                onClick={() => copyToClipboard(inviteData.emailBody, 'email')}
+                className={`btn btn-ghost text-sm ${copiedEmail ? 'text-emerald-600' : 'text-slate-600'}`}
+              >
+                {copiedEmail ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Gekopieerd
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    Kopieer tekst
+                  </>
+                )}
+              </button>
+            </div>
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+              <p className="text-sm font-medium text-slate-700 mb-2">
+                Onderwerp: {inviteData.emailSubject}
+              </p>
+              <pre className="text-sm text-slate-600 whitespace-pre-wrap font-sans">
+                {inviteData.emailBody}
+              </pre>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-3 p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+          <button onClick={onClose} className="btn btn-primary">
+            Sluiten
+          </button>
+        </div>
       </div>
     </div>
   )
