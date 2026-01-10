@@ -30,8 +30,9 @@ import {
   ChevronRight,
   ArrowLeft,
 } from 'lucide-react'
-import type { Installation, Customer, TeamMember, SmartMeter, InstallationWithRelations } from '@/types/supabase'
+import type { Installation, Customer, TeamMember, SmartMeter, InstallationWithRelations, ChecklistData } from '@/types/supabase'
 import type { InstallationStatus } from '@/types/database'
+import { InstallationChecklist } from '@/components/InstallationChecklist'
 
 // Dynamic import for the map (disable SSR)
 const InstallationsMap = dynamic(() => import('@/components/InstallationsMap'), {
@@ -174,6 +175,17 @@ export default function InstallationsPage() {
     } catch (error) {
       console.error('Error saving installation:', error)
       alert('Kon installatie niet opslaan')
+    }
+  }
+
+  // Update checklist
+  async function handleChecklistUpdate(installationId: string, checklistData: ChecklistData) {
+    try {
+      await dataApi.updateInstallation(installationId, { checklist_data: checklistData } as Partial<Installation>)
+      refetch()
+    } catch (error) {
+      console.error('Error updating checklist:', error)
+      throw error
     }
   }
 
@@ -354,6 +366,7 @@ export default function InstallationsPage() {
             onClose={() => setActiveInstallation(null)}
             onEdit={() => handleEdit(activeInstallation)}
             onStatusChange={(status) => handleStatusChange(activeInstallation.id, status)}
+            onChecklistUpdate={(data) => handleChecklistUpdate(activeInstallation.id, data)}
           />
         )}
 
@@ -486,12 +499,14 @@ function InstallationDetailPanel({
   onClose,
   onEdit,
   onStatusChange,
+  onChecklistUpdate,
 }: {
   installation: InstallationWithRelations
   smartMeters: SmartMeter[]
   onClose: () => void
   onEdit: () => void
   onStatusChange: (status: InstallationStatus) => void
+  onChecklistUpdate: (data: ChecklistData) => Promise<void>
 }) {
   const [showStatusMenu, setShowStatusMenu] = useState(false)
   const config = installationStatusConfig[installation.status]
@@ -787,6 +802,14 @@ function InstallationDetailPanel({
               </div>
             </div>
           )}
+
+          {/* Installation Checklist */}
+          <InstallationChecklist
+            installationId={installation.id}
+            checklistData={installation.checklist_data}
+            onUpdate={onChecklistUpdate}
+            readOnly={installation.status === 'completed' || installation.status === 'cancelled'}
+          />
         </div>
       </Card>
     </div>

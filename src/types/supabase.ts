@@ -9,6 +9,30 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+// Checklist types for installation workflow
+export type ChecklistItem = {
+  id: string
+  label: string
+  checked: boolean
+}
+
+export type ChecklistData = {
+  items: ChecklistItem[]
+  completed_at: string | null
+}
+
+// Default checklist items for new installations
+export const DEFAULT_CHECKLIST_ITEMS: ChecklistItem[] = [
+  { id: 'confirm_customer', label: 'Klant bereikt en afspraak bevestigd', checked: false },
+  { id: 'inspect_location', label: 'Meter locatie geïnspecteerd', checked: false },
+  { id: 'adapter_check', label: 'Adapter behoefte bepaald', checked: false },
+  { id: 'meter_connected', label: 'Meter succesvol aangesloten', checked: false },
+  { id: 'wifi_connected', label: 'Verbinding met WiFi gecontroleerd', checked: false },
+  { id: 'data_visible', label: 'Data zichtbaar in HomeWizard app', checked: false },
+  { id: 'customer_instructions', label: 'Klant instructies gegeven', checked: false },
+  { id: 'photos_taken', label: "Foto's gemaakt", checked: false },
+]
+
 export type Database = {
   public: {
     Tables: {
@@ -133,6 +157,7 @@ export type Database = {
           assigned_to: string | null
           smart_meter_id: string | null
           notes: string | null
+          checklist_data: ChecklistData | null
           created_at: string
           updated_at: string
         }
@@ -145,6 +170,7 @@ export type Database = {
           assigned_to?: string | null
           smart_meter_id?: string | null
           notes?: string | null
+          checklist_data?: ChecklistData | null
           created_at?: string
           updated_at?: string
         }
@@ -157,6 +183,7 @@ export type Database = {
           assigned_to?: string | null
           smart_meter_id?: string | null
           notes?: string | null
+          checklist_data?: ChecklistData | null
           created_at?: string
           updated_at?: string
         }
