@@ -60,12 +60,13 @@ const roleConfig: Record<UserRole, { label: string; bg: string; text: string; de
   },
 }
 
-type InviteData = {
-  inviteLink: string
+type LinkModalData = {
+  link: string
   emailSubject: string
   emailBody: string
   memberName: string
   memberEmail: string
+  type: 'invite' | 'reset'
 }
 
 export default function TeamPage() {
@@ -76,7 +77,7 @@ export default function TeamPage() {
   const [activeMember, setActiveMember] = useState<TeamMember | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
-  const [inviteData, setInviteData] = useState<InviteData | null>(null)
+  const [linkModalData, setLinkModalData] = useState<LinkModalData | null>(null)
 
   // Get installations for a member
   function getMemberInstallations(memberId: string): InstallationWithRelations[] {
@@ -147,25 +148,29 @@ export default function TeamPage() {
   }
 
   // Reset password
-  async function handleResetPassword(email: string) {
-    if (!confirm(`Weet je zeker dat je een wachtwoord reset email wilt sturen naar ${email}?`)) {
-      return
-    }
-
+  async function handleResetPassword(email: string, name: string) {
     try {
       const response = await fetch('/api/team/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, name }),
       })
 
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Kon wachtwoord reset niet versturen')
+        throw new Error(result.error || 'Kon wachtwoord reset link niet genereren')
       }
 
-      alert(`Wachtwoord reset email verstuurd naar ${email}`)
+      // Show reset link modal
+      setLinkModalData({
+        link: result.resetLink,
+        emailSubject: result.emailSubject,
+        emailBody: result.emailBody,
+        memberName: name,
+        memberEmail: email,
+        type: 'reset',
+      })
     } catch (error) {
       console.error('Reset password error:', error)
       alert(error instanceof Error ? error.message : 'Er is een fout opgetreden')
@@ -197,12 +202,13 @@ export default function TeamPage() {
         }
 
         // Show invite link modal
-        setInviteData({
-          inviteLink: result.inviteLink,
+        setLinkModalData({
+          link: result.inviteLink,
           emailSubject: result.emailSubject,
           emailBody: result.emailBody,
           memberName: memberData.name || '',
           memberEmail: memberData.email || '',
+          type: 'invite',
         })
         setIsModalOpen(false)
         setEditingMember(null)
@@ -321,7 +327,7 @@ export default function TeamPage() {
             onClose={() => setActiveMember(null)}
             onEdit={() => handleEdit(activeMember)}
             onToggleActive={() => handleToggleActive(activeMember.id)}
-            onResetPassword={() => handleResetPassword(activeMember.email)}
+            onResetPassword={() => handleResetPassword(activeMember.email, activeMember.name)}
             onDelete={() => handleDelete(activeMember.id)}
           />
         )}
@@ -354,11 +360,11 @@ export default function TeamPage() {
         />
       )}
 
-      {/* Invite Link Modal */}
-      {inviteData && (
-        <InviteLinkModal
-          inviteData={inviteData}
-          onClose={() => setInviteData(null)}
+      {/* Link Modal (for invite or reset) */}
+      {linkModalData && (
+        <LinkModal
+          data={linkModalData}
+          onClose={() => setLinkModalData(null)}
         />
       )}
     </div>
@@ -804,16 +810,23 @@ function TeamMemberModal({
   )
 }
 
-/** Invite Link Modal - shows the invite link and email template */
-function InviteLinkModal({
-  inviteData,
+/** Link Modal - shows invite or reset link with email template */
+function LinkModal({
+  data,
   onClose,
 }: {
-  inviteData: InviteData
+  data: LinkModalData
   onClose: () => void
 }) {
   const [copiedLink, setCopiedLink] = useState(false)
   const [copiedEmail, setCopiedEmail] = useState(false)
+
+  const isInvite = data.type === 'invite'
+  const title = isInvite ? 'Teamlid uitgenodigd' : 'Wachtwoord reset link'
+  const subtitle = isInvite
+    ? `Stuur de uitnodiging naar ${data.memberName}`
+    : `Stuur de reset link naar ${data.memberName}`
+  const linkLabel = isInvite ? 'Uitnodigingslink' : 'Reset link'
 
   async function copyToClipboard(text: string, type: 'link' | 'email') {
     try {
@@ -831,7 +844,7 @@ function InviteLinkModal({
   }
 
   // Create mailto link
-  const mailtoLink = `mailto:${inviteData.memberEmail}?subject=${encodeURIComponent(inviteData.emailSubject)}&body=${encodeURIComponent(inviteData.emailBody)}`
+  const mailtoLink = `mailto:${data.memberEmail}?subject=${encodeURIComponent(data.emailSubject)}&body=${encodeURIComponent(data.emailBody)}`
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -840,10 +853,10 @@ function InviteLinkModal({
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <div>
             <h3 className="text-lg font-semibold text-slate-900">
-              Teamlid uitgenodigd
+              {title}
             </h3>
             <p className="text-sm text-slate-500 mt-1">
-              Stuur de uitnodiging naar {inviteData.memberName}
+              {subtitle}
             </p>
           </div>
           <button onClick={onClose} className="btn btn-ghost p-2">
@@ -860,7 +873,7 @@ function InviteLinkModal({
               <div className="flex-1">
                 <h4 className="font-medium text-blue-900">Snelle actie</h4>
                 <p className="text-sm text-blue-700 mt-1">
-                  Klik op de knop om je e-mailprogramma te openen met de uitnodiging.
+                  Klik op de knop om je e-mailprogramma te openen met de {isInvite ? 'uitnodiging' : 'reset link'}.
                 </p>
                 <a
                   href={mailtoLink}
@@ -873,20 +886,20 @@ function InviteLinkModal({
             </div>
           </div>
 
-          {/* Invite link */}
+          {/* Link */}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-2">
-              Uitnodigingslink
+              {linkLabel}
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 readOnly
-                value={inviteData.inviteLink}
+                value={data.link}
                 className="input flex-1 font-mono text-xs bg-slate-50"
               />
               <button
-                onClick={() => copyToClipboard(inviteData.inviteLink, 'link')}
+                onClick={() => copyToClipboard(data.link, 'link')}
                 className={`btn ${copiedLink ? 'bg-emerald-600 text-white' : 'btn-secondary'} px-4`}
               >
                 {copiedLink ? (
@@ -914,7 +927,7 @@ function InviteLinkModal({
                 E-mail template (Nederlands)
               </label>
               <button
-                onClick={() => copyToClipboard(inviteData.emailBody, 'email')}
+                onClick={() => copyToClipboard(data.emailBody, 'email')}
                 className={`btn btn-ghost text-sm ${copiedEmail ? 'text-emerald-600' : 'text-slate-600'}`}
               >
                 {copiedEmail ? (
@@ -932,10 +945,10 @@ function InviteLinkModal({
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
               <p className="text-sm font-medium text-slate-700 mb-2">
-                Onderwerp: {inviteData.emailSubject}
+                Onderwerp: {data.emailSubject}
               </p>
               <pre className="text-sm text-slate-600 whitespace-pre-wrap font-sans">
-                {inviteData.emailBody}
+                {data.emailBody}
               </pre>
             </div>
           </div>
