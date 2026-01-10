@@ -133,67 +133,75 @@ export function PlannerDashboard() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card variant="stat" accentColor="blue" padding="md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Vandaag</p>
-              <p className="text-2xl font-bold text-slate-900">
-                {todayInstallations.length}
-              </p>
-              <p className="text-xs text-emerald-600">
-                {todayCompleted} voltooid
-              </p>
+        <Link href="/calendar">
+          <Card variant="clickable" accentColor="blue" padding="md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500">Vandaag</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {todayInstallations.length}
+                </p>
+                <p className="text-xs text-emerald-600">
+                  {todayCompleted} voltooid
+                </p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-blue-600" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Calendar className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </Link>
 
-        <Card variant="stat" accentColor="emerald" padding="md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Deze week</p>
-              <p className="text-2xl font-bold text-slate-900">
-                {weekInstallations.length}
-              </p>
-              <p className="text-xs text-slate-500">installaties</p>
+        <Link href="/installations">
+          <Card variant="clickable" accentColor="emerald" padding="md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500">Deze week</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {weekInstallations.length}
+                </p>
+                <p className="text-xs text-slate-500">installaties</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-emerald-600" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <TrendingUp className="h-6 w-6 text-emerald-600" />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </Link>
 
-        <Card variant="stat" accentColor="amber" padding="md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Team</p>
-              <p className="text-2xl font-bold text-slate-900">
-                {availableBuddies.length}/{energieBuddies?.length || 0}
-              </p>
-              <p className="text-xs text-slate-500">beschikbaar</p>
+        <Link href="/team">
+          <Card variant="clickable" accentColor="amber" padding="md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500">Team</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {availableBuddies.length}/{energieBuddies?.length || 0}
+                </p>
+                <p className="text-xs text-slate-500">beschikbaar</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
+                <Users className="h-6 w-6 text-amber-600" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center">
-              <Users className="h-6 w-6 text-amber-600" />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </Link>
 
-        <Card variant="stat" accentColor="purple" padding="md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Klanten</p>
-              <p className="text-2xl font-bold text-slate-900">
-                {customers?.length || 0}
-              </p>
-              <p className="text-xs text-slate-500">totaal</p>
+        <Link href="/customers">
+          <Card variant="clickable" accentColor="purple" padding="md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500">Klanten</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {customers?.length || 0}
+                </p>
+                <p className="text-xs text-slate-500">totaal</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                <User className="h-6 w-6 text-purple-600" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
-              <User className="h-6 w-6 text-purple-600" />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </Link>
       </div>
 
       {/* Attention needed section */}

@@ -100,33 +100,37 @@ export function EnergieBuddyDashboard() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 gap-4">
-        <Card variant="stat" accentColor="blue" padding="md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Vandaag</p>
-              <p className="text-2xl font-bold text-slate-900">{totalCount}</p>
-              <p className="text-xs text-slate-500">installaties</p>
+        <Link href="/today">
+          <Card variant="clickable" accentColor="blue" padding="md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500">Vandaag</p>
+                <p className="text-2xl font-bold text-slate-900">{totalCount}</p>
+                <p className="text-xs text-slate-500">installaties</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-blue-600" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-              <Calendar className="h-6 w-6 text-blue-600" />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </Link>
 
-        <Card variant="stat" accentColor="emerald" padding="md">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Voortgang</p>
-              <p className="text-2xl font-bold text-slate-900">
-                {completedCount}/{totalCount}
-              </p>
-              <p className="text-xs text-slate-500">voltooid</p>
+        <Link href="/today">
+          <Card variant="clickable" accentColor="emerald" padding="md">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-slate-500">Voortgang</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {completedCount}/{totalCount}
+                </p>
+                <p className="text-xs text-slate-500">voltooid</p>
+              </div>
+              <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" />
+              </div>
             </div>
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center">
-              <CheckCircle2 className="h-6 w-6 text-emerald-600" />
-            </div>
-          </div>
-        </Card>
+          </Card>
+        </Link>
       </div>
 
       {/* Progress bar */}
