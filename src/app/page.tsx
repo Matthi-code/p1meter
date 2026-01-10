@@ -317,7 +317,7 @@ export default function LandingPage() {
 
             <div className="text-center">
               <Link
-                href="/reset-password"
+                href="/login?forgot=true"
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium"
               >
                 Wachtwoord vergeten?
