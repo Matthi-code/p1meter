@@ -11,9 +11,6 @@ import {
   Save,
   X,
   Loader2,
-  ChevronDown,
-  ChevronUp,
-  GripVertical,
   Eye,
   EyeOff,
 } from 'lucide-react'
@@ -97,7 +94,7 @@ export default function CMSPage() {
           }`}
         >
           <FileText className="h-4 w-4" />
-          Pagina's
+          Pagina&apos;s
         </button>
       </div>
 
@@ -514,13 +511,13 @@ function PagesManager({
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-slate-900 mb-4">Pagina's</h2>
+      <h2 className="text-lg font-semibold text-slate-900 mb-4">Pagina&apos;s</h2>
 
       <Card padding="none">
         <div className="divide-y divide-slate-100">
           {pages.length === 0 ? (
             <div className="p-8 text-center text-slate-500">
-              Geen pagina's gevonden
+              Geen pagina&apos;s gevonden
             </div>
           ) : (
             pages.map((page) => (

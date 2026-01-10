@@ -111,7 +111,7 @@ export function InstallationPhotos({ installationId, readOnly = false }: Install
     <div className="mt-6">
       <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
         <Camera className="h-4 w-4 text-slate-500" />
-        Foto's
+        Foto&apos;s
       </h3>
 
       {/* Hidden file input */}

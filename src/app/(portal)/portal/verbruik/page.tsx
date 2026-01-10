@@ -809,7 +809,7 @@ function VerbruikContent() {
               <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-blue-700">
                 <p className="font-medium mb-1">Waar vind ik mijn verbruik?</p>
-                <p>Je vindt je jaarverbruik op je jaarafrekening van je energieleverancier, of in de app van je leverancier onder "Mijn verbruik".</p>
+                <p>Je vindt je jaarverbruik op je jaarafrekening van je energieleverancier, of in de app van je leverancier onder &quot;Mijn verbruik&quot;.</p>
               </div>
             </div>
           </div>
