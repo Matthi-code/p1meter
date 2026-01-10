@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { getSupabaseClient } from '@/lib/supabase'
-import { Zap, CheckCircle } from 'lucide-react'
+import { Zap, CheckCircle, Loader2, AlertCircle } from 'lucide-react'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -12,20 +12,67 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [verifying, setVerifying] = useState(true)
+  const [verified, setVerified] = useState(false)
 
-  // Check if user has valid reset token
+  // Process tokens from URL hash on mount
   useEffect(() => {
     const supabase = getSupabaseClient()
 
-    // Listen for password recovery event
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        // User is in password recovery mode
-        console.log('Password recovery mode active')
-      }
-    })
+    const processTokens = async () => {
+      // Check the URL hash for tokens (Supabase puts tokens in hash)
+      const hash = window.location.hash
+      if (hash) {
+        // Parse the hash parameters
+        const params = new URLSearchParams(hash.substring(1))
+        const accessToken = params.get('access_token')
+        const refreshToken = params.get('refresh_token')
+        const type = params.get('type')
 
-    return () => subscription.unsubscribe()
+        if (accessToken && refreshToken && type === 'recovery') {
+          // Set the session manually
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+
+          if (error) {
+            console.error('Session error:', error)
+            setError('De reset link is ongeldig of verlopen')
+            setVerifying(false)
+            return
+          }
+
+          if (data.session) {
+            setVerified(true)
+            // Clear the hash from URL for cleaner look
+            window.history.replaceState(null, '', window.location.pathname)
+          }
+        }
+      }
+
+      // Also listen for auth state changes (backup method)
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        if (event === 'PASSWORD_RECOVERY' && session) {
+          setVerified(true)
+        } else if (event === 'SIGNED_IN' && session) {
+          // User might already be in recovery mode
+          setVerified(true)
+        }
+      })
+
+      // Check if already have a session
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        setVerified(true)
+      }
+
+      setVerifying(false)
+
+      return () => subscription.unsubscribe()
+    }
+
+    processTokens()
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -49,18 +96,61 @@ export default function ResetPasswordPage() {
       const { error } = await supabase.auth.updateUser({ password })
 
       if (error) {
+        console.error('Update password error:', error)
         setError(error.message)
       } else {
         setSuccess(true)
+        // Sign out after password change so user logs in fresh
+        await supabase.auth.signOut()
         setTimeout(() => {
           router.push('/login')
         }, 2000)
       }
-    } catch {
+    } catch (err) {
+      console.error('Password update error:', err)
       setError('Er is een fout opgetreden')
     } finally {
       setLoading(false)
     }
+  }
+
+  // Loading state
+  if (verifying) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 text-blue-600 animate-spin mx-auto" />
+          <p className="text-gray-600">Link verifiëren...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Invalid/expired link
+  if (!verified) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+        <div className="max-w-md w-full space-y-8 text-center">
+          <div className="flex justify-center">
+            <div className="bg-red-100 p-3 rounded-xl">
+              <AlertCircle className="h-8 w-8 text-red-600" />
+            </div>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Ongeldige link
+          </h1>
+          <p className="text-gray-600">
+            {error || 'Deze reset link is ongeldig of verlopen. Vraag een nieuwe reset link aan.'}
+          </p>
+          <button
+            onClick={() => router.push('/login?forgot=true')}
+            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Nieuwe link aanvragen
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (

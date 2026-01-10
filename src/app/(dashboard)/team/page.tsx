@@ -27,6 +27,7 @@ import {
   Copy,
   Check,
   ExternalLink,
+  AlertCircle,
 } from 'lucide-react'
 import type { TeamMember, InstallationWithRelations } from '@/types/supabase'
 import type { UserRole } from '@/types/database'
@@ -64,6 +65,7 @@ type LinkModalData = {
   link: string
   emailSubject: string
   emailBody: string
+  emailHtml?: string
   memberName: string
   memberEmail: string
   type: 'invite' | 'reset'
@@ -78,6 +80,7 @@ export default function TeamPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [linkModalData, setLinkModalData] = useState<LinkModalData | null>(null)
+  const [deleteModalMember, setDeleteModalMember] = useState<TeamMember | null>(null)
 
   // Get installations for a member
   function getMemberInstallations(memberId: string): InstallationWithRelations[] {
@@ -140,10 +143,40 @@ export default function TeamPage() {
     }
   }
 
-  // Delete member (deactivate)
-  function handleDelete(memberId: string) {
-    if (confirm('Weet je zeker dat je dit teamlid wilt deactiveren?')) {
-      handleToggleActive(memberId)
+  // Show delete confirmation modal
+  function handleDelete(member: TeamMember) {
+    setDeleteModalMember(member)
+  }
+
+  // Actually delete the member
+  async function confirmDelete(deleteAuthUser: boolean) {
+    if (!deleteModalMember) return
+
+    try {
+      const response = await fetch(
+        `/api/team/${deleteModalMember.id}?deleteAuthUser=${deleteAuthUser}`,
+        { method: 'DELETE' }
+      )
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Kon teamlid niet verwijderen')
+      }
+
+      // Close modal and refresh
+      setDeleteModalMember(null)
+      if (activeMember?.id === deleteModalMember.id) {
+        setActiveMember(null)
+      }
+      refetch()
+
+      if (result.warning) {
+        alert(result.message)
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert(error instanceof Error ? error.message : 'Er is een fout opgetreden')
     }
   }
 
@@ -167,6 +200,7 @@ export default function TeamPage() {
         link: result.resetLink,
         emailSubject: result.emailSubject,
         emailBody: result.emailBody,
+        emailHtml: result.emailHtml,
         memberName: name,
         memberEmail: email,
         type: 'reset',
@@ -206,6 +240,7 @@ export default function TeamPage() {
           link: result.inviteLink,
           emailSubject: result.emailSubject,
           emailBody: result.emailBody,
+          emailHtml: result.emailHtml,
           memberName: memberData.name || '',
           memberEmail: memberData.email || '',
           type: 'invite',
@@ -328,7 +363,7 @@ export default function TeamPage() {
             onEdit={() => handleEdit(activeMember)}
             onToggleActive={() => handleToggleActive(activeMember.id)}
             onResetPassword={() => handleResetPassword(activeMember.email, activeMember.name)}
-            onDelete={() => handleDelete(activeMember.id)}
+            onDelete={() => handleDelete(activeMember)}
           />
         )}
 
@@ -365,6 +400,15 @@ export default function TeamPage() {
         <LinkModal
           data={linkModalData}
           onClose={() => setLinkModalData(null)}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModalMember && (
+        <DeleteConfirmModal
+          member={deleteModalMember}
+          onClose={() => setDeleteModalMember(null)}
+          onConfirm={confirmDelete}
         />
       )}
     </div>
@@ -818,46 +862,63 @@ function LinkModal({
   data: LinkModalData
   onClose: () => void
 }) {
-  const [copiedLink, setCopiedLink] = useState(false)
-  const [copiedEmail, setCopiedEmail] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
 
   const isInvite = data.type === 'invite'
-  const title = isInvite ? 'Teamlid uitgenodigd' : 'Wachtwoord reset link'
-  const subtitle = isInvite
-    ? `Stuur de uitnodiging naar ${data.memberName}`
-    : `Stuur de reset link naar ${data.memberName}`
-  const linkLabel = isInvite ? 'Uitnodigingslink' : 'Reset link'
+  const title = isInvite ? 'Teamlid uitgenodigd' : 'Wachtwoord reset'
+  const description = isInvite
+    ? `${data.memberName} ontvangt een email met een activatieknop om een wachtwoord in te stellen.`
+    : `${data.memberName} ontvangt een email met een knop om een nieuw wachtwoord in te stellen.`
 
-  async function copyToClipboard(text: string, type: 'link' | 'email') {
+  async function sendEmail() {
+    setSending(true)
+    setSendError(null)
+
     try {
-      await navigator.clipboard.writeText(text)
-      if (type === 'link') {
-        setCopiedLink(true)
-        setTimeout(() => setCopiedLink(false), 2000)
-      } else {
-        setCopiedEmail(true)
-        setTimeout(() => setCopiedEmail(false), 2000)
+      const response = await fetch('/api/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: data.memberEmail,
+          subject: data.emailSubject,
+          text: data.emailBody,
+          html: data.emailHtml || data.emailBody.replace(/\n/g, '<br>'),
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Kon email niet versturen')
       }
+
+      setSent(true)
     } catch (error) {
-      console.error('Copy failed:', error)
+      console.error('Send email error:', error)
+      setSendError(error instanceof Error ? error.message : 'Er is een fout opgetreden')
+    } finally {
+      setSending(false)
     }
   }
 
-  // Create mailto link
-  const mailtoLink = `mailto:${data.memberEmail}?subject=${encodeURIComponent(data.emailSubject)}&body=${encodeURIComponent(data.emailBody)}`
-
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+      <div className="modal max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
-          <div>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${sent ? 'bg-emerald-100' : 'bg-blue-100'}`}>
+              {sent ? (
+                <Check className="h-5 w-5 text-emerald-600" />
+              ) : (
+                <Mail className="h-5 w-5 text-blue-600" />
+              )}
+            </div>
             <h3 className="text-lg font-semibold text-slate-900">
-              {title}
+              {sent ? 'Email verstuurd!' : title}
             </h3>
-            <p className="text-sm text-slate-500 mt-1">
-              {subtitle}
-            </p>
           </div>
           <button onClick={onClose} className="btn btn-ghost p-2">
             <X className="h-5 w-5 text-slate-500" />
@@ -865,99 +926,165 @@ function LinkModal({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
-          {/* Quick action: Open email client */}
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="p-6">
+          {sent ? (
+            <div className="text-center py-4">
+              <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
+                <Check className="h-8 w-8 text-emerald-600" />
+              </div>
+              <p className="text-slate-600">
+                De {isInvite ? 'uitnodiging' : 'reset link'} is verstuurd naar
+              </p>
+              <p className="font-medium text-slate-900 mt-1">{data.memberEmail}</p>
+              <p className="text-sm text-slate-500 mt-4">
+                De link is 24 uur geldig.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-slate-600">{description}</p>
+
+              <div className="bg-slate-50 rounded-lg p-4">
+                <p className="text-sm text-slate-500">Ontvanger</p>
+                <p className="font-medium text-slate-900">{data.memberEmail}</p>
+              </div>
+
+              {sendError && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-sm text-red-600">{sendError}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-3 p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+          {sent ? (
+            <button onClick={onClose} className="btn btn-primary">
+              Sluiten
+            </button>
+          ) : (
+            <>
+              <button onClick={onClose} className="btn btn-secondary">
+                Annuleren
+              </button>
+              <button
+                onClick={sendEmail}
+                disabled={sending}
+                className="btn btn-primary"
+              >
+                {sending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Versturen...
+                  </>
+                ) : (
+                  <>
+                    <Mail className="h-4 w-4" />
+                    Verstuur email
+                  </>
+                )}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Delete confirmation modal */
+function DeleteConfirmModal({
+  member,
+  onClose,
+  onConfirm,
+}: {
+  member: TeamMember
+  onClose: () => void
+  onConfirm: (deleteAuthUser: boolean) => void
+}) {
+  const [deleting, setDeleting] = useState(false)
+  const [deleteAuth, setDeleteAuth] = useState(true)
+
+  async function handleConfirm() {
+    setDeleting(true)
+    await onConfirm(deleteAuth)
+    setDeleting(false)
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+              <Trash2 className="h-5 w-5 text-red-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-slate-900">
+              Teamlid verwijderen
+            </h3>
+          </div>
+          <button onClick={onClose} className="btn btn-ghost p-2">
+            <X className="h-5 w-5 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4">
+          <p className="text-slate-600">
+            Weet je zeker dat je <strong>{member.name}</strong> ({member.email}) wilt verwijderen?
+          </p>
+
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div className="flex items-start gap-3">
-              <Mail className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <h4 className="font-medium text-blue-900">Snelle actie</h4>
-                <p className="text-sm text-blue-700 mt-1">
-                  Klik op de knop om je e-mailprogramma te openen met de {isInvite ? 'uitnodiging' : 'reset link'}.
-                </p>
-                <a
-                  href={mailtoLink}
-                  className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Open in e-mail
-                </a>
+              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-amber-800">
+                <p className="font-medium mb-1">Let op:</p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Deze actie kan niet ongedaan worden gemaakt</li>
+                  <li>Gekoppelde installaties worden niet verwijderd</li>
+                </ul>
               </div>
             </div>
           </div>
 
-          {/* Link */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              {linkLabel}
+          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+            <input
+              type="checkbox"
+              id="deleteAuth"
+              checked={deleteAuth}
+              onChange={(e) => setDeleteAuth(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-red-600 focus:ring-red-500"
+            />
+            <label htmlFor="deleteAuth" className="text-sm text-slate-700">
+              Verwijder ook het login account (aanbevolen)
             </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                readOnly
-                value={data.link}
-                className="input flex-1 font-mono text-xs bg-slate-50"
-              />
-              <button
-                onClick={() => copyToClipboard(data.link, 'link')}
-                className={`btn ${copiedLink ? 'bg-emerald-600 text-white' : 'btn-secondary'} px-4`}
-              >
-                {copiedLink ? (
-                  <>
-                    <Check className="h-4 w-4" />
-                    Gekopieerd
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4" />
-                    Kopieer
-                  </>
-                )}
-              </button>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Deze link is 24 uur geldig.
-            </p>
-          </div>
-
-          {/* Email template */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-slate-700">
-                E-mail template (Nederlands)
-              </label>
-              <button
-                onClick={() => copyToClipboard(data.emailBody, 'email')}
-                className={`btn btn-ghost text-sm ${copiedEmail ? 'text-emerald-600' : 'text-slate-600'}`}
-              >
-                {copiedEmail ? (
-                  <>
-                    <Check className="h-4 w-4" />
-                    Gekopieerd
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-4 w-4" />
-                    Kopieer tekst
-                  </>
-                )}
-              </button>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-              <p className="text-sm font-medium text-slate-700 mb-2">
-                Onderwerp: {data.emailSubject}
-              </p>
-              <pre className="text-sm text-slate-600 whitespace-pre-wrap font-sans">
-                {data.emailBody}
-              </pre>
-            </div>
           </div>
         </div>
 
         {/* Footer */}
         <div className="flex justify-end gap-3 p-6 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
-          <button onClick={onClose} className="btn btn-primary">
-            Sluiten
+          <button onClick={onClose} className="btn btn-secondary" disabled={deleting}>
+            Annuleren
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={deleting}
+            className="btn bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
+          >
+            {deleting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Verwijderen...
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4" />
+                Verwijderen
+              </>
+            )}
           </button>
         </div>
       </div>
