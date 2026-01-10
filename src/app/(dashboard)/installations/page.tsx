@@ -29,11 +29,14 @@ import {
   Camera,
   ChevronRight,
   ArrowLeft,
+  Download,
+  FileText,
 } from 'lucide-react'
 import type { Installation, Customer, TeamMember, SmartMeter, InstallationWithRelations, ChecklistData, CustomerPhoto } from '@/types/supabase'
 import type { InstallationStatus, PhotoType } from '@/types/database'
 import { InstallationChecklist } from '@/components/InstallationChecklist'
 import { InstallationPhotos } from '@/components/InstallationPhotos'
+import { exportInstallationsToExcel, exportInstallationsToPDF } from '@/lib/export'
 
 // Dynamic import for the map (disable SSR)
 const InstallationsMap = dynamic(() => import('@/components/InstallationsMap'), {
@@ -216,6 +219,7 @@ export default function InstallationsPage() {
             <Map className="h-4 w-4" />
             Kaart
           </button>
+          <InstallationsExportDropdown installations={filteredInstallations} />
           <button onClick={handleAddNew} className="btn btn-primary">
             <Plus className="h-4 w-4" />
             Nieuwe installatie
@@ -1053,6 +1057,82 @@ function InstallationModal({
           </div>
         </form>
       </div>
+    </div>
+  )
+}
+
+/** Export dropdown for installations */
+function InstallationsExportDropdown({ installations }: { installations: InstallationWithRelations[] }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  const statusLabels: Record<string, string> = {
+    scheduled: 'Gepland',
+    confirmed: 'Bevestigd',
+    traveling: 'Onderweg',
+    in_progress: 'Bezig',
+    completed: 'Voltooid',
+    cancelled: 'Geannuleerd',
+  }
+
+  function handleExportExcel() {
+    const data = installations.map((i) => ({
+      customer_name: i.customer?.name || 'Onbekend',
+      customer_address: i.customer?.address || '',
+      customer_city: i.customer?.city || '',
+      scheduled_at: i.scheduled_at,
+      status: statusLabels[i.status] || i.status,
+      assignee_name: i.assignee?.name || 'Niet toegewezen',
+    }))
+    exportInstallationsToExcel(data)
+    setIsOpen(false)
+  }
+
+  function handleExportPDF() {
+    const data = installations.map((i) => ({
+      customer_name: i.customer?.name || 'Onbekend',
+      customer_address: i.customer?.address || '',
+      scheduled_at: i.scheduled_at,
+      status: statusLabels[i.status] || i.status,
+      assignee_name: i.assignee?.name || 'Niet toegewezen',
+    }))
+    exportInstallationsToPDF(data)
+    setIsOpen(false)
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="btn btn-secondary"
+      >
+        <Download className="h-4 w-4" />
+        <span className="hidden sm:inline">Export</span>
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-20 min-w-[160px]">
+            <button
+              onClick={handleExportExcel}
+              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4 text-emerald-600" />
+              Excel (.xlsx)
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4 text-red-600" />
+              PDF
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }

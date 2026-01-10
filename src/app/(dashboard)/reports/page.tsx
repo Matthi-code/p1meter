@@ -15,7 +15,10 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
+  Download,
+  FileText,
 } from 'lucide-react'
+import { exportReportToPDF } from '@/lib/export'
 import {
   BarChart,
   Bar,
@@ -184,6 +187,40 @@ export default function ReportsPage() {
     ]
   }, [evaluations])
 
+  // Export handler
+  const handleExportPDF = () => {
+    const periodLabel = {
+      week: 'Afgelopen week',
+      month: 'Afgelopen maand',
+      quarter: 'Afgelopen kwartaal',
+      year: 'Afgelopen jaar',
+    }[timeRange]
+
+    const installationsForExport = filteredInstallations.map((inst) => ({
+      customer_name: inst.customer?.name || 'Onbekend',
+      scheduled_at: inst.scheduled_at,
+      status: inst.status === 'completed' ? 'Voltooid' :
+              inst.status === 'scheduled' ? 'Gepland' :
+              inst.status === 'confirmed' ? 'Bevestigd' :
+              inst.status === 'cancelled' ? 'Geannuleerd' : inst.status,
+      assignee_name: inst.assignee?.name || 'Niet toegewezen',
+    }))
+
+    exportReportToPDF({
+      title: 'Prestatie Rapportage',
+      period: periodLabel,
+      metrics: [
+        { label: 'Totaal installaties', value: metrics.total },
+        { label: 'Voltooid', value: metrics.completed },
+        { label: 'Voltooiingsgraad', value: `${metrics.completionRate}%` },
+        { label: 'Gemiddelde rating', value: metrics.avgRating },
+        { label: 'Aantal klanten', value: metrics.totalCustomers },
+        { label: 'Energie Buddies', value: metrics.totalBuddies },
+      ],
+      installations: installationsForExport,
+    })
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -200,7 +237,15 @@ export default function ReportsPage() {
           <h1 className="text-2xl font-bold text-slate-900">Rapportages</h1>
           <p className="text-slate-500">Overzicht van prestaties en statistieken</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleExportPDF}
+            className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            Export PDF
+          </button>
+          <div className="flex gap-2">
           {(['week', 'month', 'quarter', 'year'] as TimeRange[]).map((range) => (
             <button
               key={range}
@@ -217,6 +262,7 @@ export default function ReportsPage() {
               {range === 'year' && 'Jaar'}
             </button>
           ))}
+          </div>
         </div>
       </div>
 

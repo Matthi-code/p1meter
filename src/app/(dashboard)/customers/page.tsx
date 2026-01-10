@@ -29,7 +29,9 @@ import {
   Camera,
   Navigation,
   ChevronRight,
+  Download,
 } from 'lucide-react'
+import { exportCustomersToExcel, exportCustomersToPDF } from '@/lib/export'
 import type { Customer } from '@/types/supabase'
 
 // Dynamic import for the map (disable SSR)
@@ -159,6 +161,7 @@ export default function CustomersPage() {
             <Map className="h-4 w-4" />
             <span className="hidden sm:inline">Kaart</span>
           </button>
+          <ExportDropdown customers={filteredCustomers} />
           <button onClick={handleAddNew} className="btn btn-primary">
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Nieuwe klant</span>
@@ -718,6 +721,58 @@ function CustomerModal({
           </div>
         </form>
       </div>
+    </div>
+  )
+}
+
+/** Export dropdown component */
+function ExportDropdown({ customers }: { customers: Customer[] }) {
+  const [isOpen, setIsOpen] = useState(false)
+
+  function handleExportExcel() {
+    exportCustomersToExcel(customers)
+    setIsOpen(false)
+  }
+
+  function handleExportPDF() {
+    exportCustomersToPDF(customers)
+    setIsOpen(false)
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="btn btn-secondary"
+      >
+        <Download className="h-4 w-4" />
+        <span className="hidden sm:inline">Export</span>
+      </button>
+
+      {isOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-10"
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-lg border border-slate-200 py-1 z-20 min-w-[160px]">
+            <button
+              onClick={handleExportExcel}
+              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4 text-emerald-600" />
+              Excel (.xlsx)
+            </button>
+            <button
+              onClick={handleExportPDF}
+              className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+            >
+              <FileText className="h-4 w-4 text-red-600" />
+              PDF
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
