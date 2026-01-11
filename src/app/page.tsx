@@ -15,7 +15,18 @@ import {
   CheckCircle,
   Gauge,
   BarChart3,
+  Star,
+  Quote,
 } from 'lucide-react'
+
+type Review = {
+  id: string
+  rating: number
+  feedback: string
+  name: string
+  city: string
+  date: string
+}
 
 export default function LandingPage() {
   const [email, setEmail] = useState('')
@@ -24,8 +35,9 @@ export default function LandingPage() {
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [currentUser, setCurrentUser] = useState<string | null>(null)
+  const [reviews, setReviews] = useState<Review[]>([])
 
-  // Check if user is logged in (display only, no redirect)
+  // Check if user is logged in and fetch reviews
   useEffect(() => {
     const storageKey = `sb-${new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0]}-auth-token`
     const session = localStorage.getItem(storageKey)
@@ -37,6 +49,12 @@ export default function LandingPage() {
         setCurrentUser(null)
       }
     }
+
+    // Fetch reviews
+    fetch('/api/reviews')
+      .then(res => res.json())
+      .then(data => setReviews(data.reviews || []))
+      .catch(() => setReviews([]))
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
@@ -223,6 +241,43 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+
+            {/* Reviews Section */}
+            {reviews.length > 0 && (
+              <div className="mt-8 lg:mt-12">
+                <div className="flex items-center gap-2 mb-4">
+                  <Quote className="h-5 w-5 text-yellow-400" />
+                  <h3 className="text-lg font-semibold text-white">Wat klanten zeggen</h3>
+                </div>
+                <div className="space-y-3">
+                  {reviews.slice(0, 3).map((review) => (
+                    <div
+                      key={review.id}
+                      className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-4 border border-slate-700/30"
+                    >
+                      <div className="flex items-center gap-1 mb-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <Star
+                            key={star}
+                            className={`h-4 w-4 ${
+                              star <= review.rating
+                                ? 'text-yellow-400 fill-yellow-400'
+                                : 'text-slate-600'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                      <p className="text-sm text-slate-300 mb-2 line-clamp-2">
+                        &ldquo;{review.feedback}&rdquo;
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        {review.name}{review.city && `, ${review.city}`}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
