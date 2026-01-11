@@ -13,6 +13,12 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  Search,
+  Copy,
+  ExternalLink,
+  ChevronUp,
+  ChevronDown,
+  GripVertical,
 } from 'lucide-react'
 
 type FAQItem = {
@@ -146,12 +152,17 @@ function FAQManager({
 }) {
   const [isSaving, setIsSaving] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const categories = [...new Set(items.map((i) => i.category))].sort()
 
-  // Filter items by selected category
-  const filteredItems = selectedCategory === 'all'
-    ? items
-    : items.filter(item => item.category === selectedCategory)
+  // Filter items by selected category and search query
+  const filteredItems = items.filter(item => {
+    const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory
+    const matchesSearch = searchQuery === '' ||
+      item.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.answer.toLowerCase().includes(searchQuery.toLowerCase())
+    return matchesCategory && matchesSearch
+  })
 
   async function handleSave(item: FAQItem) {
     setIsSaving(true)
@@ -222,27 +233,117 @@ function FAQManager({
     setIsNew(true)
   }
 
+  function handleDuplicate(item: FAQItem) {
+    setEditingItem({
+      id: '',
+      category: item.category,
+      question: item.question + ' (kopie)',
+      answer: item.answer,
+      sort_order: items.length,
+      active: true,
+    })
+    setIsNew(true)
+  }
+
+  async function handleMoveUp(item: FAQItem) {
+    const currentIndex = items.findIndex(i => i.id === item.id)
+    if (currentIndex <= 0) return
+
+    const prevItem = items[currentIndex - 1]
+
+    // Swap sort_order values
+    await Promise.all([
+      fetch('/api/cms/faq', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id, sort_order: prevItem.sort_order }),
+      }),
+      fetch('/api/cms/faq', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: prevItem.id, sort_order: item.sort_order }),
+      }),
+    ])
+    onUpdate()
+  }
+
+  async function handleMoveDown(item: FAQItem) {
+    const currentIndex = items.findIndex(i => i.id === item.id)
+    if (currentIndex >= items.length - 1) return
+
+    const nextItem = items[currentIndex + 1]
+
+    // Swap sort_order values
+    await Promise.all([
+      fetch('/api/cms/faq', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: item.id, sort_order: nextItem.sort_order }),
+      }),
+      fetch('/api/cms/faq', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: nextItem.id, sort_order: item.sort_order }),
+      }),
+    ])
+    onUpdate()
+  }
+
   return (
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-slate-900">
-          Veelgestelde vragen ({filteredItems.length}{selectedCategory !== 'all' ? ` van ${items.length}` : ''})
+          Veelgestelde vragen ({filteredItems.length}{selectedCategory !== 'all' || searchQuery ? ` van ${items.length}` : ''})
         </h2>
-        <button onClick={handleNew} className="btn btn-primary">
-          <Plus className="h-4 w-4" />
-          Nieuwe vraag
-        </button>
+        <div className="flex items-center gap-2">
+          <a
+            href="/faq"
+            target="_blank"
+            className="btn btn-secondary"
+            title="Bekijk publieke FAQ pagina"
+          >
+            <ExternalLink className="h-4 w-4" />
+            Preview
+          </a>
+          <button onClick={handleNew} className="btn btn-primary">
+            <Plus className="h-4 w-4" />
+            Nieuwe vraag
+          </button>
+        </div>
+      </div>
+
+      {/* Search and Filter Bar */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        {/* Search */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Zoeken in vragen en antwoorden..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Category Filter */}
-      {categories.length > 1 && (
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-sm text-slate-500">Filter:</span>
-          <div className="flex flex-wrap gap-2">
+      {categories.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2">
+          <span className="text-sm text-slate-500 flex-shrink-0">Filter:</span>
+          <div className="flex gap-2">
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                 selectedCategory === 'all'
                   ? 'bg-blue-600 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -254,7 +355,7 @@ function FAQManager({
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                   selectedCategory === cat
                     ? 'bg-blue-600 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -275,12 +376,31 @@ function FAQManager({
               {selectedCategory === 'all' ? 'Geen FAQ items gevonden' : `Geen items in categorie "${selectedCategory}"`}
             </div>
           ) : (
-            filteredItems.map((item) => (
+            filteredItems.map((item, index) => (
               <div
                 key={item.id}
                 className={`p-4 ${!item.active ? 'bg-slate-50 opacity-60' : ''}`}
               >
                 <div className="flex items-start gap-3">
+                  {/* Sort controls */}
+                  <div className="flex flex-col gap-0.5 pt-1">
+                    <button
+                      onClick={() => handleMoveUp(item)}
+                      disabled={index === 0}
+                      className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Omhoog"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleMoveDown(item)}
+                      disabled={index === filteredItems.length - 1}
+                      className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded disabled:opacity-30 disabled:cursor-not-allowed"
+                      title="Omlaag"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
+                  </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
@@ -291,6 +411,7 @@ function FAQManager({
                           Inactief
                         </span>
                       )}
+                      <span className="text-xs text-slate-400">#{item.sort_order}</span>
                     </div>
                     <p className="font-medium text-slate-900 mb-1">{item.question}</p>
                     <p className="text-sm text-slate-600 line-clamp-2">{item.answer}</p>
@@ -308,17 +429,26 @@ function FAQManager({
                       {item.active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </button>
                     <button
+                      onClick={() => handleDuplicate(item)}
+                      className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Dupliceren"
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => {
                         setEditingItem(item)
                         setIsNew(false)
                       }}
                       className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Bewerken"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(item.id)}
                       className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Verwijderen"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>
