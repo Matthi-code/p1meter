@@ -328,6 +328,27 @@ function FAQEditModal({
 }) {
   const [formData, setFormData] = useState(item)
   const [newCategory, setNewCategory] = useState('')
+  const [isAddingNewCategory, setIsAddingNewCategory] = useState(false)
+
+  // Ensure we always have at least 'Algemeen' as an option
+  const availableCategories = categories.length > 0 ? categories : ['Algemeen']
+
+  function handleCategoryChange(value: string) {
+    if (value === '__new__') {
+      setIsAddingNewCategory(true)
+      setNewCategory('')
+      // Clear the category so validation works correctly
+      setFormData((prev) => ({ ...prev, category: '' }))
+    } else {
+      setIsAddingNewCategory(false)
+      setFormData((prev) => ({ ...prev, category: value }))
+    }
+  }
+
+  function handleNewCategoryInput(value: string) {
+    setNewCategory(value)
+    setFormData((prev) => ({ ...prev, category: value }))
+  }
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -349,27 +370,25 @@ function FAQEditModal({
             </label>
             <div className="flex gap-2">
               <select
-                value={formData.category}
-                onChange={(e) => setFormData((prev) => ({ ...prev, category: e.target.value }))}
+                value={isAddingNewCategory ? '__new__' : formData.category}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="input flex-1"
               >
-                {categories.map((cat) => (
+                {availableCategories.map((cat) => (
                   <option key={cat} value={cat}>
                     {cat}
                   </option>
                 ))}
                 <option value="__new__">+ Nieuwe categorie</option>
               </select>
-              {formData.category === '__new__' && (
+              {isAddingNewCategory && (
                 <input
                   type="text"
                   placeholder="Nieuwe categorie..."
                   value={newCategory}
-                  onChange={(e) => {
-                    setNewCategory(e.target.value)
-                    setFormData((prev) => ({ ...prev, category: e.target.value }))
-                  }}
+                  onChange={(e) => handleNewCategoryInput(e.target.value)}
                   className="input flex-1"
+                  autoFocus
                 />
               )}
             </div>
@@ -442,7 +461,7 @@ function FAQEditModal({
           </button>
           <button
             onClick={() => onSave(formData)}
-            disabled={isSaving || !formData.question || !formData.answer}
+            disabled={isSaving || !formData.question || !formData.answer || !formData.category}
             className="btn btn-primary flex-1"
           >
             {isSaving ? (

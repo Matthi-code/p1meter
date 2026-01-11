@@ -228,30 +228,54 @@ export default function LandingPage() {
 
         {/* Bottom/Right Side - Login Form */}
         <div className="lg:flex-none lg:w-[480px] xl:w-[540px] flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-8 lg:py-12 bg-white lg:bg-slate-50 rounded-t-[2rem] lg:rounded-t-none lg:rounded-l-[3rem] lg:shadow-2xl relative">
-          {/* Show logged in state */}
-          {currentUser && (
-            <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-              <p className="text-emerald-800 text-sm mb-3">
-                Je bent ingelogd als <strong>{currentUser}</strong>
-              </p>
-              <a
+          {currentUser ? (
+            /* Show logged in state - no login form */
+            <div className="text-center lg:text-left">
+              <div className="mb-6 lg:mb-8">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
+                  <CheckCircle className="h-8 w-8 text-emerald-600" />
+                </div>
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mb-2">
+                  Welkom terug!
+                </h2>
+                <p className="text-sm lg:text-base text-slate-500">
+                  Je bent ingelogd als <strong className="text-slate-700">{currentUser}</strong>
+                </p>
+              </div>
+              <Link
                 href="/dashboard"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors w-full justify-center"
+                className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-600 to-emerald-700 text-white rounded-xl font-medium hover:from-emerald-700 hover:to-emerald-800 transition-all shadow-lg shadow-emerald-600/30 w-full sm:w-auto"
               >
                 Ga naar Dashboard
-                <ArrowRight className="h-4 w-4" />
-              </a>
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+              <p className="mt-4 text-sm text-slate-500">
+                Niet jij?{' '}
+                <button
+                  onClick={() => {
+                    const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0]
+                    localStorage.removeItem(`sb-${projectRef}-auth-token`)
+                    document.cookie = `sb-${projectRef}-auth-token=; path=/; max-age=0`
+                    document.cookie = `sb-${projectRef}-auth-token.0=; path=/; max-age=0`
+                    setCurrentUser(null)
+                  }}
+                  className="text-blue-600 hover:text-blue-700 font-medium"
+                >
+                  Uitloggen
+                </button>
+              </p>
             </div>
-          )}
+          ) : (
+            /* Show login form when not logged in */
+            <>
+              {/* Header */}
+              <div className="mb-6 lg:mb-10 text-center lg:text-left">
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mb-2">Welkom terug</h2>
+                <p className="text-sm lg:text-base text-slate-500">Log in om verder te gaan naar je dashboard</p>
+              </div>
 
-          {/* Header */}
-          <div className="mb-6 lg:mb-10 text-center lg:text-left">
-            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-slate-900 mb-2">Welkom terug</h2>
-            <p className="text-sm lg:text-base text-slate-500">Log in om verder te gaan naar je dashboard</p>
-          </div>
-
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-5">
+              {/* Login Form */}
+              <form onSubmit={handleSubmit} className="space-y-4 lg:space-y-5">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5 lg:mb-2">
                 E-mailadres
@@ -375,6 +399,8 @@ export default function LandingPage() {
             Medewerker zonder account?{' '}
             <span className="text-slate-700">Neem contact op met de administrator.</span>
           </p>
+            </>
+          )}
         </div>
       </div>
     </div>
