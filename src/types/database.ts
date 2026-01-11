@@ -150,3 +150,50 @@ export type AuthUser = {
   role: UserRole
   name: string
 }
+
+/** Product categorie */
+export type ProductCategory = 'meter' | 'adapter' | 'cable' | 'accessory' | 'other'
+
+/** Transactie type */
+export type TransactionType = 'purchase' | 'usage' | 'return' | 'adjustment'
+
+/** Product */
+export type Product = {
+  id: string
+  name: string
+  sku: string
+  category: ProductCategory
+  description: string | null
+  unit_price: number | null
+  stock_quantity: number
+  min_stock_level: number
+  active: boolean
+  created_at: string
+}
+
+/** Voorraad transactie */
+export type InventoryTransaction = {
+  id: string
+  product_id: string
+  type: TransactionType
+  quantity: number
+  installation_id: string | null
+  notes: string | null
+  created_by: string | null
+  created_at: string
+  // Joined data
+  product?: Product
+  installation?: Installation
+  created_by_user?: TeamMember
+}
+
+/** Materiaal gebruikt bij installatie */
+export type InstallationMaterial = {
+  id: string
+  installation_id: string
+  product_id: string
+  quantity: number
+  created_at: string
+  // Joined data
+  product?: Product
+}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useInstallations, useTasks, useCustomers, useEnergieBuddies } from '@/hooks/useData'
 import { useAuth } from '@/lib/auth'
@@ -20,7 +20,16 @@ import {
   Loader2,
   User,
   TrendingUp,
+  Package,
 } from 'lucide-react'
+
+type LowStockProduct = {
+  id: string
+  name: string
+  sku: string
+  stock_quantity: number
+  min_stock_level: number
+}
 
 export function PlannerDashboard() {
   const { user } = useAuth()
@@ -28,6 +37,24 @@ export function PlannerDashboard() {
   const { data: tasks } = useTasks()
   const { data: customers } = useCustomers()
   const { data: energieBuddies } = useEnergieBuddies()
+
+  // Low stock products
+  const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([])
+
+  useEffect(() => {
+    const fetchLowStock = async () => {
+      try {
+        const response = await fetch('/api/inventory/products?active=true&lowStock=true')
+        if (response.ok) {
+          const data = await response.json()
+          setLowStockProducts(data)
+        }
+      } catch (error) {
+        console.error('Error fetching low stock:', error)
+      }
+    }
+    fetchLowStock()
+  }, [])
 
   // Get today and this week's date range
   const today = new Date()
@@ -205,7 +232,7 @@ export function PlannerDashboard() {
       </div>
 
       {/* Attention needed section */}
-      {(unassignedInstallations.length > 0 || pendingConfirmations.length > 0) && (
+      {(unassignedInstallations.length > 0 || pendingConfirmations.length > 0 || lowStockProducts.length > 0) && (
         <Card padding="md" className="border-l-4 border-l-amber-500">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
@@ -217,7 +244,7 @@ export function PlannerDashboard() {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-3">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {unassignedInstallations.length > 0 && (
               <Link href="/installations">
                 <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-xl hover:bg-amber-100 transition-colors">
@@ -242,6 +269,24 @@ export function PlannerDashboard() {
                   <div className="flex-1">
                     <p className="font-medium text-slate-900">Wacht op bevestiging</p>
                     <p className="text-xs text-slate-500">Bevestig met klant</p>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-slate-400" />
+                </div>
+              </Link>
+            )}
+
+            {lowStockProducts.length > 0 && (
+              <Link href="/inventory">
+                <div className="flex items-center gap-3 p-3 bg-red-50 rounded-xl hover:bg-red-100 transition-colors">
+                  <span className="w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center font-bold text-sm">
+                    {lowStockProducts.length}
+                  </span>
+                  <div className="flex-1">
+                    <p className="font-medium text-slate-900">Lage voorraad</p>
+                    <p className="text-xs text-slate-500">
+                      {lowStockProducts.slice(0, 2).map(p => p.name).join(', ')}
+                      {lowStockProducts.length > 2 ? '...' : ''}
+                    </p>
                   </div>
                   <ChevronRight className="h-5 w-5 text-slate-400" />
                 </div>
