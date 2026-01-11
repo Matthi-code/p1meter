@@ -156,10 +156,13 @@ function FAQManager({
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [isDeleting, setIsDeleting] = useState(false)
-  const categories = [...new Set(items.map((i) => i.category))].sort()
+  // Separate suggestions from regular FAQ items
+  const suggestions = items.filter(item => item.category === 'Suggestie')
+  const regularItems = items.filter(item => item.category !== 'Suggestie')
+  const categories = [...new Set(regularItems.map((i) => i.category))].sort()
 
-  // Filter items by selected category and search query
-  const filteredItems = items.filter(item => {
+  // Filter items by selected category and search query (only regular items)
+  const filteredItems = regularItems.filter(item => {
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory
     const matchesSearch = searchQuery === '' ||
       item.question.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -350,10 +353,83 @@ function FAQManager({
 
   return (
     <div>
+      {/* Suggestions Section */}
+      {suggestions.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                <MessageSquare className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">
+                  Ingezonden vragen ({suggestions.length})
+                </h2>
+                <p className="text-sm text-slate-500">Vragen van bezoekers die wachten op een antwoord</p>
+              </div>
+            </div>
+          </div>
+
+          <Card padding="none" className="border-amber-200 bg-amber-50/50">
+            <div className="divide-y divide-amber-100">
+              {suggestions.map((item) => {
+                const isSelected = selectedIds.has(item.id)
+                return (
+                  <div
+                    key={item.id}
+                    className={`p-4 ${isSelected ? 'bg-blue-50' : ''}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="pt-1">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelection(item.id)}
+                          className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-200 text-amber-800 text-xs font-medium rounded">
+                            <MessageSquare className="h-3 w-3" />
+                            Nieuw
+                          </span>
+                        </div>
+                        <p className="font-medium text-slate-900 mb-1">{item.question}</p>
+                        <p className="text-sm text-slate-600 line-clamp-2">{item.answer}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setEditingItem(item)
+                            setIsNew(false)
+                          }}
+                          className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition-colors"
+                          title="Beantwoorden"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(item.id)}
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Verwijderen"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-slate-900">
-          Veelgestelde vragen ({filteredItems.length}{selectedCategory !== 'all' || searchQuery ? ` van ${items.length}` : ''})
+          Veelgestelde vragen ({filteredItems.length}{selectedCategory !== 'all' || searchQuery ? ` van ${regularItems.length}` : ''})
         </h2>
         <div className="flex items-center gap-2">
           <a
@@ -408,7 +484,7 @@ function FAQManager({
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              Alle ({items.length})
+              Alle ({regularItems.length})
             </button>
             {categories.map((cat) => (
               <button
@@ -420,7 +496,7 @@ function FAQManager({
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {cat} ({items.filter(i => i.category === cat).length})
+                {cat} ({regularItems.filter(i => i.category === cat).length})
               </button>
             ))}
           </div>

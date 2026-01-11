@@ -29,6 +29,7 @@ import {
   FileText,
   BarChart3,
   Package,
+  Settings,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { MobileBottomNav } from '@/components/MobileBottomNav'
@@ -122,6 +123,11 @@ function getNavItems(role: string): NavItem[] {
       href: '/cms',
       label: 'Content',
       icon: <FileText className="h-5 w-5" />,
+    })
+    items.push({
+      href: '/settings',
+      label: 'Instellingen',
+      icon: <Settings className="h-5 w-5" />,
     })
   }
 
