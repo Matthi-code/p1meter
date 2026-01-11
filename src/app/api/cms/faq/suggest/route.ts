@@ -101,29 +101,67 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify({ ip_address: clientIP }),
     })
 
-    // Create a task for the planner to answer the question
-    const taskData = {
-      title: 'FAQ vraag beantwoorden',
-      description: `Ingezonden vraag via FAQ pagina:\n\n"${question.trim()}"${email ? `\n\nIngestuurd door: ${email}` : ''}`,
-      scheduled_at: new Date().toISOString(),
-      status: 'pending',
-      is_recurring: false,
-    }
+    // Create or update daily task for FAQ suggestions
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayISO = today.toISOString()
+    const tomorrowISO = new Date(today.getTime() + 24 * 60 * 60 * 1000).toISOString()
 
-    const taskResponse = await fetch(`${SUPABASE_URL}/rest/v1/tasks`, {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_SERVICE_KEY,
-        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=representation',
-      },
-      body: JSON.stringify(taskData),
-    })
+    // Check if there's already a FAQ suggestions task for today
+    const existingTaskResponse = await fetch(
+      `${SUPABASE_URL}/rest/v1/tasks?title=eq.FAQ%20suggesties%20bekijken&scheduled_at=gte.${encodeURIComponent(todayISO)}&scheduled_at=lt.${encodeURIComponent(tomorrowISO)}&select=id,description`,
+      {
+        headers: {
+          'apikey': SUPABASE_SERVICE_KEY,
+          'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        },
+      }
+    )
 
-    if (!taskResponse.ok) {
-      console.error('Failed to create task:', await taskResponse.text())
-      // Don't fail the whole request if task creation fails
+    if (existingTaskResponse.ok) {
+      const existingTasks = await existingTaskResponse.json()
+
+      if (existingTasks.length > 0) {
+        // Update existing task - increment counter
+        const existingTask = existingTasks[0]
+        // Extract count from "Er is/zijn X nieuwe vraag/vragen"
+        const countMatch = existingTask.description?.match(/Er (?:is|zijn) (\d+) nieuwe/)
+        const currentCount = countMatch ? parseInt(countMatch[1]) : 1
+        const newCount = currentCount + 1
+
+        const updatedDescription = `Er zijn ${newCount} nieuwe vragen binnengekomen via de FAQ pagina.\n\nBekijk de ingezonden vragen in Content → FAQ beheer.`
+
+        await fetch(`${SUPABASE_URL}/rest/v1/tasks?id=eq.${existingTask.id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            description: updatedDescription,
+          }),
+        })
+      } else {
+        // Create new task for today
+        const taskData = {
+          title: 'FAQ suggesties bekijken',
+          description: 'Er is 1 nieuwe vraag binnengekomen via de FAQ pagina.\n\nBekijk de ingezonden vragen in Content → FAQ beheer.',
+          scheduled_at: new Date().toISOString(),
+          status: 'pending',
+          is_recurring: false,
+        }
+
+        await fetch(`${SUPABASE_URL}/rest/v1/tasks`, {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_SERVICE_KEY,
+            'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(taskData),
+        })
+      }
     }
 
     return NextResponse.json({
