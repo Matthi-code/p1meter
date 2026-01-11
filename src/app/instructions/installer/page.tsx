@@ -64,23 +64,62 @@ export default function InstallerInstructionsPage() {
 
     const reader = new FileReader()
     reader.onload = () => {
-      setUploadedImage(reader.result as string)
-      analyzeMeter()
+      const base64 = reader.result as string
+      setUploadedImage(base64)
+      analyzeMeter(base64)
     }
     reader.readAsDataURL(file)
   }
 
-  const analyzeMeter = () => {
+  const analyzeMeter = async (imageBase64: string) => {
     setAnalyzing(true)
     setDetectedMeter(null)
 
-    // Simulate AI analysis - in production zou dit Claude Vision API aanroepen
-    setTimeout(() => {
-      // Random meter selecteren voor demo
-      const randomMeter = mockSmartMeters[Math.floor(Math.random() * mockSmartMeters.length)]
-      setDetectedMeter(randomMeter)
+    try {
+      const response = await fetch('/api/analyze-meter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64 }),
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setDetectedMeter({
+          id: 'detected',
+          brand: result.brand || 'Onbekend',
+          model: result.model || 'Niet herkend',
+          smr_version: result.smr_version || 'Onbekend',
+          needs_adapter: result.needs_adapter ?? false,
+          reference_image_url: null,
+          notes: result.reasoning || null,
+        })
+      } else {
+        // Fallback: toon melding dat meter niet herkend kon worden
+        setDetectedMeter({
+          id: 'unknown',
+          brand: 'Niet herkend',
+          model: 'Controleer handmatig',
+          smr_version: 'Onbekend',
+          needs_adapter: false,
+          reference_image_url: null,
+          notes: result.error || 'Kon de meter niet automatisch herkennen. Controleer handmatig of er een USB-C poort op de meter zit.',
+        })
+      }
+    } catch (error) {
+      console.error('Meter analysis error:', error)
+      setDetectedMeter({
+        id: 'error',
+        brand: 'Fout',
+        model: 'Analyse mislukt',
+        smr_version: 'Onbekend',
+        needs_adapter: false,
+        reference_image_url: null,
+        notes: 'Er is een fout opgetreden bij het analyseren van de foto. Probeer het opnieuw.',
+      })
+    } finally {
       setAnalyzing(false)
-    }, 2000)
+    }
   }
 
   const clearImage = () => {
