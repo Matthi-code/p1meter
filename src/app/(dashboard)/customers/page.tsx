@@ -30,6 +30,9 @@ import {
   Navigation,
   ChevronRight,
   Download,
+  Upload,
+  AlertCircle,
+  CheckCircle,
 } from 'lucide-react'
 import { exportCustomersToExcel, exportCustomersToPDF } from '@/lib/export'
 import type { Customer } from '@/types/supabase'
@@ -53,6 +56,7 @@ export default function CustomersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
   const [showMap, setShowMap] = useState(false)
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false)
 
   // Gefilterde klanten op basis van zoekquery
   const filteredCustomers = useMemo(() => {
@@ -161,6 +165,13 @@ export default function CustomersPage() {
             <Map className="h-4 w-4" />
             <span className="hidden sm:inline">Kaart</span>
           </button>
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="btn btn-secondary"
+          >
+            <Upload className="h-4 w-4" />
+            <span className="hidden sm:inline">Import</span>
+          </button>
           <ExportDropdown customers={filteredCustomers} />
           <button onClick={handleAddNew} className="btn btn-primary">
             <Plus className="h-4 w-4" />
@@ -245,6 +256,17 @@ export default function CustomersPage() {
             setEditingCustomer(null)
           }}
           onSave={handleSave}
+        />
+      )}
+
+      {/* Import modal */}
+      {isImportModalOpen && (
+        <ImportModal
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            setIsImportModalOpen(false)
+            refetch()
+          }}
         />
       )}
     </div>
@@ -773,6 +795,229 @@ function ExportDropdown({ customers }: { customers: Customer[] }) {
           </div>
         </>
       )}
+    </div>
+  )
+}
+
+/** Import modal component */
+function ImportModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void
+  onSuccess: () => void
+}) {
+  const [file, setFile] = useState<File | null>(null)
+  const [skipDuplicates, setSkipDuplicates] = useState(true)
+  const [isUploading, setIsUploading] = useState(false)
+  const [result, setResult] = useState<{
+    success: number
+    failed: number
+    errors: string[]
+    duplicates: string[]
+  } | null>(null)
+
+  async function handleDownloadTemplate() {
+    const response = await fetch('/api/customers/import')
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'klanten_template.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function handleImport() {
+    if (!file) return
+
+    setIsUploading(true)
+    setResult(null)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('skipDuplicates', skipDuplicates.toString())
+
+      const response = await fetch('/api/customers/import', {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setResult(data)
+        if (data.success > 0) {
+          // Auto-close after 3 seconds if successful
+          setTimeout(() => {
+            onSuccess()
+          }, 3000)
+        }
+      } else {
+        setResult({
+          success: 0,
+          failed: 0,
+          errors: [data.error || 'Import mislukt'],
+          duplicates: [],
+        })
+      }
+    } catch (error) {
+      setResult({
+        success: 0,
+        failed: 0,
+        errors: ['Er ging iets mis bij het importeren'],
+        duplicates: [],
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div
+        className="modal max-w-lg w-full mx-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+          <h3 className="text-lg font-semibold text-slate-900">
+            Klanten importeren
+          </h3>
+          <button onClick={onClose} className="btn btn-ghost p-2">
+            <X className="h-5 w-5 text-slate-500" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4">
+          {/* Instructions */}
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+            <h4 className="font-medium text-blue-800 mb-2">Instructies</h4>
+            <ul className="text-sm text-blue-700 space-y-1">
+              <li>Upload een Excel bestand (.xlsx) met klantgegevens</li>
+              <li>Kolommen: Naam, E-mail, Telefoon, Adres, Postcode, Plaats</li>
+              <li>De eerste rij moet de kolomnamen bevatten</li>
+            </ul>
+            <button
+              onClick={handleDownloadTemplate}
+              className="mt-3 text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+            >
+              <Download className="h-4 w-4" />
+              Download template
+            </button>
+          </div>
+
+          {/* File upload */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Excel bestand
+            </label>
+            <div className="relative">
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              />
+              <div className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
+                file ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 hover:border-slate-300'
+              }`}>
+                {file ? (
+                  <div className="flex items-center justify-center gap-2 text-emerald-700">
+                    <FileText className="h-5 w-5" />
+                    <span className="font-medium">{file.name}</span>
+                  </div>
+                ) : (
+                  <div className="text-slate-500">
+                    <Upload className="h-8 w-8 mx-auto mb-2 text-slate-400" />
+                    <p className="font-medium">Klik of sleep bestand</p>
+                    <p className="text-sm">.xlsx of .xls</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Options */}
+          <label className="flex items-center gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={skipDuplicates}
+              onChange={(e) => setSkipDuplicates(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-slate-700">
+              Bestaande e-mailadressen overslaan (duplicaten)
+            </span>
+          </label>
+
+          {/* Results */}
+          {result && (
+            <div className={`rounded-xl p-4 ${
+              result.success > 0 && result.failed === 0
+                ? 'bg-emerald-50 border border-emerald-200'
+                : result.errors.length > 0
+                ? 'bg-red-50 border border-red-200'
+                : 'bg-amber-50 border border-amber-200'
+            }`}>
+              <div className="flex items-start gap-3">
+                {result.success > 0 && result.failed === 0 ? (
+                  <CheckCircle className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <p className="font-medium text-slate-900">
+                    {result.success} klant{result.success !== 1 ? 'en' : ''} geïmporteerd
+                    {result.failed > 0 && `, ${result.failed} mislukt`}
+                    {result.duplicates.length > 0 && `, ${result.duplicates.length} overgeslagen (duplicaat)`}
+                  </p>
+                  {result.errors.length > 0 && (
+                    <ul className="mt-2 text-sm text-red-700 space-y-1">
+                      {result.errors.slice(0, 5).map((error, i) => (
+                        <li key={i}>{error}</li>
+                      ))}
+                      {result.errors.length > 5 && (
+                        <li className="text-slate-500">
+                          ... en {result.errors.length - 5} meer
+                        </li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 p-6 pt-0">
+          <button onClick={onClose} className="btn btn-secondary flex-1">
+            {result?.success ? 'Sluiten' : 'Annuleren'}
+          </button>
+          {!result?.success && (
+            <button
+              onClick={handleImport}
+              disabled={!file || isUploading}
+              className="btn btn-primary flex-1"
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Importeren...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  Importeren
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
