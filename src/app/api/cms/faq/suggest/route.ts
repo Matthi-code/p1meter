@@ -48,6 +48,31 @@ export async function POST(request: NextRequest) {
 
     const savedItem = await response.json()
 
+    // Create a task for the planner to answer the question
+    const taskData = {
+      title: 'FAQ vraag beantwoorden',
+      description: `Ingezonden vraag via FAQ pagina:\n\n"${question.trim()}"${email ? `\n\nIngestuurd door: ${email}` : ''}`,
+      scheduled_at: new Date().toISOString(),
+      status: 'pending',
+      is_recurring: false,
+    }
+
+    const taskResponse = await fetch(`${SUPABASE_URL}/rest/v1/tasks`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_SERVICE_KEY,
+        'Authorization': `Bearer ${SUPABASE_SERVICE_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(taskData),
+    })
+
+    if (!taskResponse.ok) {
+      console.error('Failed to create task:', await taskResponse.text())
+      // Don't fail the whole request if task creation fails
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Vraag ontvangen',
