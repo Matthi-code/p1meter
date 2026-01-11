@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ChevronDown, Zap, HelpCircle, Loader2 } from 'lucide-react'
+import { ChevronDown, Zap, HelpCircle, Loader2, Send, CheckCircle } from 'lucide-react'
 
 type FAQItem = {
   id: string
@@ -155,24 +155,149 @@ export default function FAQPage() {
           })}
         </div>
 
-        {/* Contact CTA */}
-        <div className="mt-12 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-8 text-center">
+        {/* Question Suggestion Form */}
+        <QuestionSuggestionForm />
+      </div>
+    </div>
+  )
+}
+
+// Question Suggestion Form Component
+function QuestionSuggestionForm() {
+  const [question, setQuestion] = useState('')
+  const [email, setEmail] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitted, setIsSubmitted] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!question.trim()) return
+
+    setIsSubmitting(true)
+    setError('')
+
+    try {
+      const response = await fetch('/api/cms/faq/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          question: question.trim(),
+          email: email.trim() || undefined,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setIsSubmitted(true)
+        setQuestion('')
+        setEmail('')
+      } else {
+        setError(data.error || 'Er ging iets mis. Probeer het opnieuw.')
+      }
+    } catch {
+      setError('Er ging iets mis. Probeer het opnieuw.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (isSubmitted) {
+    return (
+      <div className="mt-12 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-2xl p-8 text-center">
+        <div className="w-14 h-14 bg-emerald-200 rounded-2xl flex items-center justify-center mx-auto mb-4">
+          <CheckCircle className="h-7 w-7 text-emerald-600" />
+        </div>
+        <h3 className="text-xl font-semibold text-slate-900 mb-2">
+          Bedankt voor je vraag!
+        </h3>
+        <p className="text-slate-600 mb-6">
+          We hebben je vraag ontvangen en zullen deze zo snel mogelijk beantwoorden.
+          {email && ' Je ontvangt een e-mail zodra het antwoord beschikbaar is.'}
+        </p>
+        <button
+          onClick={() => setIsSubmitted(false)}
+          className="text-emerald-600 font-medium hover:text-emerald-700"
+        >
+          Nog een vraag stellen
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-12 bg-gradient-to-br from-slate-50 to-slate-100 rounded-2xl p-8">
+      <div className="max-w-xl mx-auto">
+        <div className="text-center mb-6">
           <div className="w-14 h-14 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
             <Zap className="h-7 w-7 text-blue-600" />
           </div>
           <h3 className="text-xl font-semibold text-slate-900 mb-2">
             Vraag niet gevonden?
           </h3>
-          <p className="text-slate-600 mb-6">
-            Neem contact met ons op, we helpen je graag verder.
+          <p className="text-slate-600">
+            Stel je vraag hieronder en we voegen het antwoord toe aan onze FAQ.
           </p>
-          <a
-            href="mailto:info@p1meter-installaties.nl"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            Contact opnemen
-          </a>
         </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="question" className="block text-sm font-medium text-slate-700 mb-1.5">
+              Je vraag *
+            </label>
+            <textarea
+              id="question"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="Bijv. Hoe lang duurt het voordat ik mijn verbruik kan zien?"
+              rows={3}
+              required
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1.5">
+              E-mailadres <span className="text-slate-400 font-normal">(optioneel)</span>
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="naam@voorbeeld.nl"
+              className="w-full px-4 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <p className="mt-1.5 text-xs text-slate-500">
+              Laat je e-mail achter om een bericht te ontvangen zodra je vraag beantwoord is.
+            </p>
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting || !question.trim()}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Versturen...
+              </>
+            ) : (
+              <>
+                <Send className="h-5 w-5" />
+                Vraag insturen
+              </>
+            )}
+          </button>
+        </form>
       </div>
     </div>
   )

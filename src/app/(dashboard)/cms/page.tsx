@@ -19,6 +19,7 @@ import {
   ChevronUp,
   ChevronDown,
   GripVertical,
+  MessageSquare,
 } from 'lucide-react'
 
 type FAQItem = {
@@ -376,10 +377,12 @@ function FAQManager({
               {selectedCategory === 'all' ? 'Geen FAQ items gevonden' : `Geen items in categorie "${selectedCategory}"`}
             </div>
           ) : (
-            filteredItems.map((item, index) => (
+            filteredItems.map((item, index) => {
+              const isSuggestion = item.category === 'Suggestie'
+              return (
               <div
                 key={item.id}
-                className={`p-4 ${!item.active ? 'bg-slate-50 opacity-60' : ''}`}
+                className={`p-4 ${isSuggestion ? 'bg-amber-50 border-l-4 border-l-amber-400' : ''} ${!item.active && !isSuggestion ? 'bg-slate-50 opacity-60' : ''}`}
               >
                 <div className="flex items-start gap-3">
                   {/* Sort controls */}
@@ -403,15 +406,25 @@ function FAQManager({
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                        {item.category}
-                      </span>
-                      {!item.active && (
+                      {isSuggestion ? (
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-200 text-amber-800 text-xs font-medium rounded">
+                          <MessageSquare className="h-3 w-3" />
+                          Ingezonden vraag
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                          {item.category}
+                        </span>
+                      )}
+                      {!item.active && !isSuggestion && (
                         <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-xs font-medium rounded">
                           Inactief
                         </span>
                       )}
-                      <span className="text-xs text-slate-400">#{item.sort_order}</span>
+                      {isSuggestion && (
+                        <span className="text-xs text-amber-600">Te beantwoorden</span>
+                      )}
+                      {!isSuggestion && <span className="text-xs text-slate-400">#{item.sort_order}</span>}
                     </div>
                     <p className="font-medium text-slate-900 mb-1">{item.question}</p>
                     <p className="text-sm text-slate-600 line-clamp-2">{item.answer}</p>
@@ -455,7 +468,7 @@ function FAQManager({
                   </div>
                 </div>
               </div>
-            ))
+            )})
           )}
         </div>
       </Card>
