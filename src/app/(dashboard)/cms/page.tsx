@@ -154,6 +154,8 @@ function FAQManager({
   const [isSaving, setIsSaving] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
   const categories = [...new Set(items.map((i) => i.category))].sort()
 
   // Filter items by selected category and search query
@@ -203,6 +205,62 @@ function FAQManager({
       }
     } catch (error) {
       console.error('Delete error:', error)
+    }
+  }
+
+  // Bulk delete selected items
+  async function handleBulkDelete() {
+    if (selectedIds.size === 0) return
+    if (!confirm(`Weet je zeker dat je ${selectedIds.size} item(s) wilt verwijderen?`)) return
+
+    setIsDeleting(true)
+    try {
+      const deletePromises = Array.from(selectedIds).map(id =>
+        fetch(`/api/cms/faq?id=${id}`, { method: 'DELETE' })
+      )
+      await Promise.all(deletePromises)
+      setSelectedIds(new Set())
+      onUpdate()
+    } catch (error) {
+      console.error('Bulk delete error:', error)
+      alert('Er ging iets mis bij het verwijderen')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  // Toggle single item selection
+  function toggleSelection(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  // Toggle all filtered items
+  function toggleSelectAll() {
+    const filteredIds = filteredItems.map(item => item.id)
+    const allSelected = filteredIds.every(id => selectedIds.has(id))
+
+    if (allSelected) {
+      // Deselect all filtered items
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        filteredIds.forEach(id => next.delete(id))
+        return next
+      })
+    } else {
+      // Select all filtered items
+      setSelectedIds(prev => {
+        const next = new Set(prev)
+        filteredIds.forEach(id => next.add(id))
+        return next
+      })
     }
   }
 
@@ -369,8 +427,51 @@ function FAQManager({
         </div>
       )}
 
+      {/* Bulk Actions Bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center justify-between p-3 mb-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-blue-800">
+              {selectedIds.size} item(s) geselecteerd
+            </span>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="text-sm text-blue-600 hover:text-blue-800"
+            >
+              Deselecteer alles
+            </button>
+          </div>
+          <button
+            onClick={handleBulkDelete}
+            disabled={isDeleting}
+            className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:opacity-50"
+          >
+            {isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+            Verwijderen
+          </button>
+        </div>
+      )}
+
       {/* FAQ List */}
       <Card padding="none">
+        {/* Select All Header */}
+        {filteredItems.length > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 border-b border-slate-100">
+            <input
+              type="checkbox"
+              checked={filteredItems.length > 0 && filteredItems.every(item => selectedIds.has(item.id))}
+              onChange={toggleSelectAll}
+              className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+            />
+            <span className="text-sm text-slate-600">
+              Selecteer alles ({filteredItems.length})
+            </span>
+          </div>
+        )}
         <div className="divide-y divide-slate-100">
           {filteredItems.length === 0 ? (
             <div className="p-8 text-center text-slate-500">
@@ -379,12 +480,22 @@ function FAQManager({
           ) : (
             filteredItems.map((item, index) => {
               const isSuggestion = item.category === 'Suggestie'
+              const isSelected = selectedIds.has(item.id)
               return (
               <div
                 key={item.id}
-                className={`p-4 ${isSuggestion ? 'bg-amber-50 border-l-4 border-l-amber-400' : ''} ${!item.active && !isSuggestion ? 'bg-slate-50 opacity-60' : ''}`}
+                className={`p-4 ${isSuggestion ? 'bg-amber-50 border-l-4 border-l-amber-400' : ''} ${!item.active && !isSuggestion ? 'bg-slate-50 opacity-60' : ''} ${isSelected ? 'bg-blue-50' : ''}`}
               >
                 <div className="flex items-start gap-3">
+                  {/* Checkbox */}
+                  <div className="pt-1">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleSelection(item.id)}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    />
+                  </div>
                   {/* Sort controls */}
                   <div className="flex flex-col gap-0.5 pt-1">
                     <button
