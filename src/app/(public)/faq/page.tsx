@@ -10,6 +10,12 @@ type FAQItem = {
   category: string
 }
 
+type Settings = {
+  contact_email?: string
+  contact_phone?: string
+  company_name?: string
+}
+
 // Fallback data in case database is not yet set up
 const fallbackItems: FAQItem[] = [
   {
@@ -37,18 +43,38 @@ const fallbackItems: FAQItem[] = [
 
 export default function FAQPage() {
   const [faqItems, setFaqItems] = useState<FAQItem[]>([])
+  const [settings, setSettings] = useState<Settings>({})
   const [isLoading, setIsLoading] = useState(true)
   const [openItems, setOpenItems] = useState<string[]>([])
   const [activeCategory, setActiveCategory] = useState<string>('')
 
+  // Replace placeholders in text with actual settings values
+  function replaceSettingsPlaceholders(text: string): string {
+    return text
+      .replace(/\{\{contact_email\}\}/g, settings.contact_email || 'info@voorbeeld.nl')
+      .replace(/\{\{contact_phone\}\}/g, settings.contact_phone || '')
+      .replace(/\{\{company_name\}\}/g, settings.company_name || 'p1Meter')
+  }
+
   useEffect(() => {
-    async function fetchFAQ() {
+    async function fetchData() {
       try {
-        const response = await fetch('/api/cms/faq')
-        const data = await response.json()
-        if (data.items && data.items.length > 0) {
+        // Fetch FAQ and settings in parallel
+        const [faqResponse, settingsResponse] = await Promise.all([
+          fetch('/api/cms/faq'),
+          fetch('/api/settings')
+        ])
+
+        const faqData = await faqResponse.json()
+        const settingsData = await settingsResponse.json()
+
+        if (settingsData.settings) {
+          setSettings(settingsData.settings)
+        }
+
+        if (faqData.items && faqData.items.length > 0) {
           // Only show active items
-          const activeItems = data.items.filter((item: FAQItem & { active: boolean }) => item.active !== false)
+          const activeItems = faqData.items.filter((item: FAQItem & { active: boolean }) => item.active !== false)
           setFaqItems(activeItems)
           // Set first category as active
           const categories = [...new Set(activeItems.map((item: FAQItem) => item.category))]
@@ -61,14 +87,14 @@ export default function FAQPage() {
           setActiveCategory('Algemeen')
         }
       } catch (error) {
-        console.error('Error fetching FAQ:', error)
+        console.error('Error fetching data:', error)
         setFaqItems(fallbackItems)
         setActiveCategory('Algemeen')
       } finally {
         setIsLoading(false)
       }
     }
-    fetchFAQ()
+    fetchData()
   }, [])
 
   function toggleItem(id: string) {
@@ -147,7 +173,7 @@ export default function FAQPage() {
                 </button>
                 {isOpen && (
                   <div className="px-5 pb-5">
-                    <p className="text-slate-600 leading-relaxed whitespace-pre-line">{item.answer}</p>
+                    <p className="text-slate-600 leading-relaxed whitespace-pre-line">{replaceSettingsPlaceholders(item.answer)}</p>
                   </div>
                 )}
               </div>
