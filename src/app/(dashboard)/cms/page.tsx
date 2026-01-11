@@ -145,7 +145,13 @@ function FAQManager({
   setIsNew: (v: boolean) => void
 }) {
   const [isSaving, setIsSaving] = useState(false)
-  const categories = [...new Set(items.map((i) => i.category))]
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+  const categories = [...new Set(items.map((i) => i.category))].sort()
+
+  // Filter items by selected category
+  const filteredItems = selectedCategory === 'all'
+    ? items
+    : items.filter(item => item.category === selectedCategory)
 
   async function handleSave(item: FAQItem) {
     setIsSaving(true)
@@ -221,7 +227,7 @@ function FAQManager({
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-slate-900">
-          Veelgestelde vragen ({items.length})
+          Veelgestelde vragen ({filteredItems.length}{selectedCategory !== 'all' ? ` van ${items.length}` : ''})
         </h2>
         <button onClick={handleNew} className="btn btn-primary">
           <Plus className="h-4 w-4" />
@@ -229,15 +235,47 @@ function FAQManager({
         </button>
       </div>
 
+      {/* Category Filter */}
+      {categories.length > 1 && (
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-sm text-slate-500">Filter:</span>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setSelectedCategory('all')}
+              className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                selectedCategory === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Alle ({items.length})
+            </button>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                  selectedCategory === cat
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {cat} ({items.filter(i => i.category === cat).length})
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* FAQ List */}
       <Card padding="none">
         <div className="divide-y divide-slate-100">
-          {items.length === 0 ? (
+          {filteredItems.length === 0 ? (
             <div className="p-8 text-center text-slate-500">
-              Geen FAQ items gevonden
+              {selectedCategory === 'all' ? 'Geen FAQ items gevonden' : `Geen items in categorie "${selectedCategory}"`}
             </div>
           ) : (
-            items.map((item) => (
+            filteredItems.map((item) => (
               <div
                 key={item.id}
                 className={`p-4 ${!item.active ? 'bg-slate-50 opacity-60' : ''}`}
