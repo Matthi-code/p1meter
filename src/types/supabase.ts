@@ -25,12 +25,18 @@ export type ChecklistData = {
 export const DEFAULT_CHECKLIST_ITEMS: ChecklistItem[] = [
   { id: 'confirm_customer', label: 'Klant bereikt en afspraak bevestigd', checked: false },
   { id: 'inspect_location', label: 'Meter locatie geïnspecteerd', checked: false },
-  { id: 'adapter_check', label: 'Adapter behoefte bepaald', checked: false },
+  { id: 'usbc_adapter_needed', label: 'USB-C adapter nodig', checked: false },
+  { id: 'power_outlet_available', label: 'Stopcontact aanwezig', checked: false },
+  { id: 'wifi_available', label: 'WiFi beschikbaar bij meter', checked: false },
+  { id: 'start_time_noted', label: 'Starttijd genoteerd', checked: false },
   { id: 'meter_connected', label: 'Meter succesvol aangesloten', checked: false },
-  { id: 'wifi_connected', label: 'Verbinding met WiFi gecontroleerd', checked: false },
-  { id: 'data_visible', label: 'Data zichtbaar in HomeWizard app', checked: false },
+  { id: 'account_created_by_customer', label: 'Account door klant zelf aangemaakt', checked: false },
+  { id: 'app_installed', label: 'App geïnstalleerd op telefoon', checked: false },
+  { id: 'data_visible_desktop', label: 'Data zichtbaar op desktop', checked: false },
+  { id: 'data_visible_phone', label: 'Data zichtbaar op telefoon', checked: false },
   { id: 'customer_instructions', label: 'Klant instructies gegeven', checked: false },
-  { id: 'photos_taken', label: "Foto's gemaakt", checked: false },
+  { id: 'portal_access_works', label: 'Klant kan klantportaal gebruiken', checked: false },
+  { id: 'followup_requested', label: 'Klant wil check/uitleg na 1 week', checked: false },
 ]
 
 export type Database = {
