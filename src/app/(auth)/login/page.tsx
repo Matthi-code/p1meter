@@ -68,16 +68,37 @@ function LoginForm() {
     setResetLoading(true)
 
     try {
-      const supabase = getSupabaseClient()
-      const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+      // Generate reset link via our API
+      const resetResponse = await fetch('/api/team/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetEmail }),
       })
 
-      if (error) {
-        setError(error.message)
-      } else {
-        setResetMessage('Check je e-mail voor de reset link!')
+      const resetData = await resetResponse.json()
+
+      if (!resetResponse.ok) {
+        setError(resetData.error || 'Kon reset link niet genereren')
+        return
       }
+
+      // Send the email via Resend
+      const emailResponse = await fetch('/api/email/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: resetEmail,
+          subject: resetData.emailSubject,
+          html: resetData.emailHtml,
+        }),
+      })
+
+      if (!emailResponse.ok) {
+        setError('Kon email niet versturen')
+        return
+      }
+
+      setResetMessage('Check je e-mail voor de reset link!')
     } catch {
       setError('Er is een fout opgetreden')
     } finally {

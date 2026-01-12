@@ -232,9 +232,9 @@ RESEND_API_KEY=
 
 | Omgeving | URL |
 |----------|-----|
-| Productie | https://p1meter.vercel.app |
-| Admin Login | https://p1meter.vercel.app/login |
-| Klant Portal | https://p1meter.vercel.app/portal-login |
+| Productie | https://p1meter.jmtest.nl |
+| Admin Login | https://p1meter.jmtest.nl/login |
+| Klant Portal | https://p1meter.jmtest.nl/portal-login |
 | GitHub | https://github.com/Matthi-code/p1meter |
 
 ---

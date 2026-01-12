@@ -100,10 +100,9 @@ export default function ResetPasswordPage() {
         setError(error.message)
       } else {
         setSuccess(true)
-        // Sign out after password change so user logs in fresh
-        await supabase.auth.signOut()
+        // Redirect to homepage after successful password change
         setTimeout(() => {
-          router.push('/login')
+          window.location.href = '/'
         }, 2000)
       }
     } catch (err) {
