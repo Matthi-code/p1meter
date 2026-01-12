@@ -100,10 +100,51 @@ export default function ResetPasswordPage() {
         setError(error.message)
       } else {
         setSuccess(true)
-        // Redirect to homepage after successful password change
-        setTimeout(() => {
-          window.location.href = '/'
-        }, 2000)
+
+        // Get the current session and store it properly
+        const { data: { session } } = await supabase.auth.getSession()
+        if (session) {
+          // Store session in localStorage and cookies for the app
+          const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split('.')[0]
+          const storageKey = `sb-${projectRef}-auth-token`
+          const sessionData = JSON.stringify({
+            access_token: session.access_token,
+            refresh_token: session.refresh_token,
+            expires_at: session.expires_at,
+            expires_in: session.expires_in,
+            token_type: session.token_type,
+            user: session.user,
+          })
+          localStorage.setItem(storageKey, sessionData)
+
+          // Also store in cookies for middleware (SSR)
+          const maxAge = session.expires_in || 3600
+          document.cookie = `sb-${projectRef}-auth-token=${encodeURIComponent(sessionData)}; path=/; max-age=${maxAge}; SameSite=Lax`
+          document.cookie = `sb-${projectRef}-auth-token.0=${encodeURIComponent(sessionData)}; path=/; max-age=${maxAge}; SameSite=Lax`
+
+          // Get role and redirect accordingly
+          const roleResponse = await fetch(
+            `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/team_members?user_id=eq.${session.user.id}&select=role`,
+            {
+              headers: {
+                'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+                'Authorization': `Bearer ${session.access_token}`,
+              },
+            }
+          )
+          const roleData = await roleResponse.json()
+          const role = roleData?.[0]?.role || 'huiseigenaar'
+
+          // Redirect based on role after short delay
+          setTimeout(() => {
+            window.location.href = role === 'huiseigenaar' ? '/portal' : '/dashboard'
+          }, 2000)
+        } else {
+          // Fallback redirect to homepage
+          setTimeout(() => {
+            window.location.href = '/'
+          }, 2000)
+        }
       }
     } catch (err) {
       console.error('Password update error:', err)
@@ -179,7 +220,7 @@ export default function ResetPasswordPage() {
               Wachtwoord succesvol gewijzigd!
             </p>
             <p className="text-gray-500 text-sm">
-              Je wordt doorgestuurd naar de login pagina...
+              Je wordt doorgestuurd naar je dashboard...
             </p>
           </div>
         ) : (
