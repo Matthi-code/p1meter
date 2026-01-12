@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { CheckCircle2, Circle, Loader2, ClipboardCheck } from 'lucide-react'
 import { Card } from '@/components/ui'
 import type { ChecklistData, ChecklistItem } from '@/types/supabase'
@@ -13,24 +13,43 @@ type InstallationChecklistProps = {
   readOnly?: boolean
 }
 
+// Merge saved items with defaults: keeps checked state from saved items, adds new items from defaults
+function mergeChecklistItems(savedItems: ChecklistItem[] | undefined): ChecklistItem[] {
+  if (!savedItems || savedItems.length === 0) {
+    return DEFAULT_CHECKLIST_ITEMS
+  }
+
+  // Create a map of saved items by id for quick lookup
+  const savedMap = new Map(savedItems.map(item => [item.id, item]))
+
+  // Use default items as base, preserve checked state from saved items
+  return DEFAULT_CHECKLIST_ITEMS.map(defaultItem => {
+    const savedItem = savedMap.get(defaultItem.id)
+    return savedItem
+      ? { ...defaultItem, checked: savedItem.checked } // Keep saved checked state, use default label
+      : defaultItem // New item, use default
+  })
+}
+
 export function InstallationChecklist({
   installationId,
   checklistData,
   onUpdate,
   readOnly = false,
 }: InstallationChecklistProps) {
-  // Initialize with saved data or defaults
-  const [items, setItems] = useState<ChecklistItem[]>(
-    checklistData?.items || DEFAULT_CHECKLIST_ITEMS
+  // Merge saved data with defaults to handle new/removed items
+  const mergedItems = useMemo(
+    () => mergeChecklistItems(checklistData?.items),
+    [checklistData?.items]
   )
+
+  const [items, setItems] = useState<ChecklistItem[]>(mergedItems)
   const [isSaving, setIsSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
 
   // Update items when checklistData prop changes
   useEffect(() => {
-    if (checklistData?.items) {
-      setItems(checklistData.items)
-    }
+    setItems(mergeChecklistItems(checklistData?.items))
   }, [checklistData])
 
   // Calculate progress
