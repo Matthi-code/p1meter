@@ -48,6 +48,8 @@ export default function TasksPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<TaskWithRelations | null>(null)
   const [activeTask, setActiveTask] = useState<TaskWithRelations | null>(null)
+  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set())
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Filtered tasks
   const filteredTasks = useMemo(() => {
@@ -151,10 +153,66 @@ export default function TasksPage() {
         if (activeTask?.id === taskId) {
           setActiveTask(null)
         }
+        setSelectedTasks(prev => {
+          const next = new Set(prev)
+          next.delete(taskId)
+          return next
+        })
         refetch()
       } catch (error) {
         console.error('Error deleting task:', error)
         alert('Kon taak niet verwijderen')
+      }
+    }
+  }
+
+  // Toggle task selection
+  function toggleTaskSelection(taskId: string) {
+    setSelectedTasks(prev => {
+      const next = new Set(prev)
+      if (next.has(taskId)) {
+        next.delete(taskId)
+      } else {
+        next.add(taskId)
+      }
+      return next
+    })
+  }
+
+  // Select all filtered tasks
+  function selectAllTasks() {
+    const allIds = new Set(filteredTasks.map(t => t.id))
+    setSelectedTasks(allIds)
+  }
+
+  // Deselect all tasks
+  function deselectAllTasks() {
+    setSelectedTasks(new Set())
+  }
+
+  // Delete selected tasks
+  async function handleDeleteSelected() {
+    if (selectedTasks.size === 0) return
+
+    const count = selectedTasks.size
+    if (confirm(`Weet je zeker dat je ${count} ${count === 1 ? 'taak' : 'taken'} wilt verwijderen?`)) {
+      setIsDeleting(true)
+      try {
+        // Delete all selected tasks
+        await Promise.all(
+          Array.from(selectedTasks).map(id => dataApi.deleteTask(id))
+        )
+        // Clear selection and active task if deleted
+        if (activeTask && selectedTasks.has(activeTask.id)) {
+          setActiveTask(null)
+        }
+        setSelectedTasks(new Set())
+        refetch()
+      } catch (error) {
+        console.error('Error deleting tasks:', error)
+        alert('Kon niet alle taken verwijderen')
+      } finally {
+        setIsDeleting(false)
       }
     }
   }
@@ -284,6 +342,41 @@ export default function TasksPage() {
         </div>
       </div>
 
+      {/* Selection bar */}
+      {selectedTasks.size > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-blue-800">
+              {selectedTasks.size} {selectedTasks.size === 1 ? 'taak' : 'taken'} geselecteerd
+            </span>
+            <button
+              onClick={selectAllTasks}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Selecteer alle ({filteredTasks.length})
+            </button>
+            <button
+              onClick={deselectAllTasks}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Deselecteer
+            </button>
+          </div>
+          <button
+            onClick={handleDeleteSelected}
+            disabled={isDeleting}
+            className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+          >
+            {isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
+            Verwijderen
+          </button>
+        </div>
+      )}
+
       {/* Master-Detail Layout */}
       <div className="flex-1 flex gap-6 min-h-0">
         {/* Left: Task List - hidden on mobile when detail is shown */}
@@ -315,7 +408,9 @@ export default function TasksPage() {
                       key={task.id}
                       task={task}
                       isActive={activeTask?.id === task.id}
+                      isSelected={selectedTasks.has(task.id)}
                       onSelect={() => setActiveTask(task)}
+                      onToggleSelect={() => toggleTaskSelection(task.id)}
                       onComplete={() => handleComplete(task.id)}
                     />
                   ))}
@@ -374,12 +469,16 @@ export default function TasksPage() {
 function TaskListItem({
   task,
   isActive,
+  isSelected,
   onSelect,
+  onToggleSelect,
   onComplete,
 }: {
   task: TaskWithRelations
   isActive: boolean
+  isSelected: boolean
   onSelect: () => void
+  onToggleSelect: () => void
   onComplete: () => void
 }) {
   const config = taskStatusConfig[task.status]
@@ -388,12 +487,27 @@ function TaskListItem({
   return (
     <div
       className={`p-4 cursor-pointer transition-colors ${
-        isActive ? 'bg-blue-50 border-l-4 border-l-blue-500' : 'hover:bg-slate-50'
+        isActive ? 'bg-blue-50 border-l-4 border-l-blue-500' : isSelected ? 'bg-blue-50/50' : 'hover:bg-slate-50'
       } ${isCompleted ? 'opacity-60' : ''}`}
       onClick={onSelect}
     >
       <div className="flex items-start gap-3">
-        {/* Checkbox */}
+        {/* Selection checkbox */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onToggleSelect()
+          }}
+          className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+            isSelected
+              ? 'bg-blue-600 border-blue-600 text-white'
+              : 'border-slate-300 hover:border-blue-500'
+          }`}
+        >
+          {isSelected && <Check className="h-3 w-3" />}
+        </button>
+
+        {/* Complete checkbox */}
         <button
           onClick={(e) => {
             e.stopPropagation()
@@ -403,8 +517,9 @@ function TaskListItem({
           className={`mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ${
             isCompleted
               ? 'bg-green-500 border-green-500 text-white'
-              : 'border-slate-300 hover:border-blue-500'
+              : 'border-slate-300 hover:border-green-500'
           }`}
+          title={isCompleted ? 'Voltooid' : 'Markeer als voltooid'}
         >
           {isCompleted && <Check className="h-3 w-3" />}
         </button>
