@@ -21,7 +21,9 @@ import {
   User,
   TrendingUp,
   Package,
+  BarChart3,
 } from 'lucide-react'
+import { DashboardAnalytics } from './DashboardAnalytics'
 
 type LowStockProduct = {
   id: string
@@ -466,6 +468,14 @@ export function PlannerDashboard() {
           </Card>
         </Link>
       </div>
+
+      {/* Analytics section */}
+      {installations && installations.length > 0 && energieBuddies && (
+        <DashboardAnalytics
+          installations={installations}
+          energieBuddies={energieBuddies}
+        />
+      )}
     </div>
   )
 }
