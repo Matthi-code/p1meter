@@ -5,7 +5,7 @@ import FullCalendar from '@fullcalendar/react'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import timeGridPlugin from '@fullcalendar/timegrid'
 import interactionPlugin from '@fullcalendar/interaction'
-import type { EventInput, EventClickArg } from '@fullcalendar/core'
+import type { EventInput, EventClickArg, EventDropArg } from '@fullcalendar/core'
 import { useInstallations, useTasks, useEnergieBuddies, useCustomers, useSmartMeters } from '@/hooks/useData'
 import * as dataApi from '@/lib/data'
 import { formatDateTime } from '@/lib/utils'
@@ -246,6 +246,62 @@ export default function CalendarPage() {
     }
   }
 
+  // Handle event drop (drag & drop to new date/time)
+  async function handleEventDrop(info: EventDropArg) {
+    const event = info.event
+    const extendedProps = event.extendedProps as CalendarEvent['extendedProps']
+    const newStart = event.start
+
+    if (!newStart) {
+      info.revert()
+      return
+    }
+
+    const newScheduledAt = newStart.toISOString()
+
+    try {
+      if (extendedProps.type === 'installation') {
+        const installation = extendedProps.data as InstallationWithRelations
+        await dataApi.updateInstallation(installation.id, {
+          scheduled_at: newScheduledAt,
+        })
+        refetchInstallations()
+        // Update selected event if it's the same
+        if (selectedEvent?.id === event.id) {
+          setSelectedEvent({
+            ...selectedEvent,
+            start: newScheduledAt,
+            extendedProps: {
+              ...selectedEvent.extendedProps,
+              data: { ...installation, scheduled_at: newScheduledAt },
+            },
+          })
+        }
+      } else {
+        const task = extendedProps.data as TaskWithRelations
+        await dataApi.updateTask(task.id, {
+          scheduled_at: newScheduledAt,
+        })
+        refetchTasks()
+        // Update selected event if it's the same
+        if (selectedEvent?.id === event.id) {
+          setSelectedEvent({
+            ...selectedEvent,
+            start: newScheduledAt,
+            extendedProps: {
+              ...selectedEvent.extendedProps,
+              data: { ...task, scheduled_at: newScheduledAt },
+            },
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error moving event:', error)
+      alert('Kon afspraak niet verplaatsen')
+      info.revert()
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -342,6 +398,8 @@ export default function CalendarPage() {
               allDaySlot={false}
               events={events}
               eventClick={handleEventClick}
+              editable={true}
+              eventDrop={handleEventDrop}
               height="auto"
               buttonText={{
                 today: 'Vandaag',
