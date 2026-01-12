@@ -103,6 +103,45 @@ CREATE POLICY "CMS pages editable by team" ON cms_pages FOR ALL USING (auth.uid(
       })
     }
 
+    // Check if checklist_data column exists in installations table
+    const { data: installationCheck, error: installationCheckError } = await supabase
+      .from('installations')
+      .select('checklist_data')
+      .limit(1)
+
+    if (installationCheckError?.code === '42703') {
+      // Column doesn't exist - provide instructions
+      const sqlToRun = `
+-- Voer dit uit in Supabase SQL Editor:
+ALTER TABLE installations ADD COLUMN IF NOT EXISTS checklist_data JSONB DEFAULT NULL;
+
+-- OF maak eerst deze functie aan (eenmalig), dan kan de API het uitvoeren:
+CREATE OR REPLACE FUNCTION exec_sql(sql text) RETURNS void AS $$
+BEGIN
+  EXECUTE sql;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+`
+      // Try to use exec_sql if it exists
+      const { error: execError } = await supabase.rpc('exec_sql', {
+        sql: 'ALTER TABLE installations ADD COLUMN IF NOT EXISTS checklist_data JSONB DEFAULT NULL'
+      })
+
+      if (execError) {
+        return NextResponse.json({
+          success: false,
+          message: 'checklist_data kolom bestaat nog niet. Voer de SQL handmatig uit.',
+          sql: sqlToRun,
+          error: execError.message
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'checklist_data kolom toegevoegd via exec_sql functie'
+      })
+    }
+
     // Tables exist, check if they have data
     const { data: faqData } = await supabase.from('faq_items').select('id').limit(1)
     const { data: pagesData } = await supabase.from('cms_pages').select('id').limit(1)

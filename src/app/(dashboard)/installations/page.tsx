@@ -148,12 +148,6 @@ export default function InstallationsPage() {
     setIsModalOpen(true)
   }
 
-  // Open modal for editing
-  function handleEdit(installation: InstallationWithRelations) {
-    setEditingInstallation(installation)
-    setIsModalOpen(true)
-  }
-
   // Change status
   async function handleStatusChange(installationId: string, newStatus: InstallationStatus) {
     try {
@@ -369,7 +363,6 @@ export default function InstallationsPage() {
             installation={activeInstallation}
             smartMeters={smartMeters ?? []}
             onClose={() => setActiveInstallation(null)}
-            onEdit={() => handleEdit(activeInstallation)}
             onStatusChange={(status) => handleStatusChange(activeInstallation.id, status)}
             onChecklistUpdate={(data) => handleChecklistUpdate(activeInstallation.id, data)}
           />
@@ -502,14 +495,12 @@ function InstallationDetailPanel({
   installation,
   smartMeters,
   onClose,
-  onEdit,
   onStatusChange,
   onChecklistUpdate,
 }: {
   installation: InstallationWithRelations
   smartMeters: SmartMeter[]
   onClose: () => void
-  onEdit: () => void
   onStatusChange: (status: InstallationStatus) => void
   onChecklistUpdate: (data: ChecklistData) => Promise<void>
 }) {
@@ -650,9 +641,9 @@ function InstallationDetailPanel({
                   Portal
                 </button>
               )}
-              <button onClick={onEdit} className="btn btn-primary">
+              <a href={`/installations/${installation.id}`} className="btn btn-primary">
                 Bewerken
-              </button>
+              </a>
             </div>
           </div>
 
