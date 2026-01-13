@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useInstallations, useTasks } from '@/hooks/useData'
@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth'
 import { formatDateTime } from '@/lib/utils'
 import { installationStatusConfig } from '@/lib/status'
 import { Card } from '@/components/ui'
+import { RouteOptimizer } from '@/components/RouteOptimizer'
 import {
   MapPin,
   Clock,
@@ -37,6 +38,7 @@ export default function TodayPage() {
   const { user } = useAuth()
   const { data: installations, isLoading: installationsLoading } = useInstallations()
   const { data: tasks, isLoading: tasksLoading } = useTasks()
+  const [optimizedOrder, setOptimizedOrder] = useState<InstallationWithRelations[] | null>(null)
 
   // Get today's date range
   const today = new Date()
@@ -45,7 +47,7 @@ export default function TodayPage() {
   tomorrow.setDate(tomorrow.getDate() + 1)
 
   // Filter installations for today assigned to current user
-  const todayInstallations = useMemo(() => {
+  const todayInstallationsBase = useMemo(() => {
     if (!installations || !user) return []
     return installations
       .filter((inst) => {
@@ -58,6 +60,9 @@ export default function TodayPage() {
       })
       .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
   }, [installations, user, today, tomorrow])
+
+  // Use optimized order if available, otherwise use time-sorted order
+  const todayInstallations = optimizedOrder || todayInstallationsBase
 
   // Filter tasks for today assigned to current user
   const todayTasks = useMemo(() => {
@@ -132,6 +137,14 @@ export default function TodayPage() {
             : `Nog ${totalCount - completedCount} installatie${totalCount - completedCount !== 1 ? 's' : ''} te gaan`}
         </p>
       </Card>
+
+      {/* Route optimizer */}
+      {todayInstallationsBase.length >= 2 && (
+        <RouteOptimizer
+          installations={todayInstallationsBase}
+          onOptimized={setOptimizedOrder}
+        />
+      )}
 
       {/* Next installation - highlighted */}
       {nextInstallation && (
