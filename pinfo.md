@@ -241,18 +241,23 @@ RESEND_API_KEY=
 
 ## Roadmap / Toekomstige Features
 
-- [ ] CMS voor FAQ en Over ons pagina's
-- [ ] Rapportages en dashboard analytics
+### Voltooid
+- [x] CMS voor FAQ en Over ons pagina's
+- [x] Rapportages en dashboard analytics
+- [x] Voorraad beheer (meters, adapters)
+- [x] Route optimalisatie voor Energie Buddies
+- [x] Foto's bij installatie (voor/na)
+- [x] Reviews/testimonials op website
+- [x] Excel import/export
+- [x] Multi-select taken met bulk verwijderen
+- [x] Drag & drop in kalender
+
+### Open
 - [ ] SMS notificaties (Twilio)
-- [ ] Voorraad beheer (meters, adapters)
-- [ ] Route optimalisatie voor Energie Buddies
-- [ ] Foto's bij installatie (voor/na)
-- [ ] Reviews/testimonials op website
 - [ ] Factuur generatie
-- [ ] Excel import/export
 - [ ] HomeWizard API koppeling
 
 ---
 
-*Laatst bijgewerkt: 10 januari 2026*
+*Laatst bijgewerkt: 13 januari 2026*
 *Ontwikkeld met Claude Code*
