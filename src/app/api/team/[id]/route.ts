@@ -51,17 +51,26 @@ export async function DELETE(
     }
 
     // 2. Unassign any installations from this team member
-    const { error: unassignError } = await supabase
+    const { error: unassignInstError } = await supabase
       .from('installations')
       .update({ assigned_to: null })
       .eq('assigned_to', id)
 
-    if (unassignError) {
-      console.error('Unassign installations error:', unassignError)
-      // Continue anyway, will try to delete
+    if (unassignInstError) {
+      console.error('Unassign installations error:', unassignInstError)
     }
 
-    // 3. Delete the team_member record
+    // 3. Unassign any tasks from this team member
+    const { error: unassignTasksError } = await supabase
+      .from('tasks')
+      .update({ assigned_to: null })
+      .eq('assigned_to', id)
+
+    if (unassignTasksError) {
+      console.error('Unassign tasks error:', unassignTasksError)
+    }
+
+    // 4. Delete the team_member record
     const { error: deleteError } = await supabase
       .from('team_members')
       .delete()
@@ -75,7 +84,7 @@ export async function DELETE(
       )
     }
 
-    // 4. Optionally delete the auth user
+    // 5. Optionally delete the auth user
     if (deleteAuthUser && teamMember.user_id) {
       const { error: authDeleteError } = await supabase.auth.admin.deleteUser(
         teamMember.user_id
