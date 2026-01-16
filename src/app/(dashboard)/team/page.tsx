@@ -69,6 +69,8 @@ type LinkModalData = {
   memberName: string
   memberEmail: string
   type: 'invite' | 'reset'
+  emailSent?: boolean
+  emailError?: string | null
 }
 
 export default function TeamPage() {
@@ -186,7 +188,7 @@ export default function TeamPage() {
       const response = await fetch('/api/team/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, name }),
+        body: JSON.stringify({ email, name, sendEmail: true }),
       })
 
       const result = await response.json()
@@ -195,7 +197,7 @@ export default function TeamPage() {
         throw new Error(result.error || 'Kon wachtwoord reset link niet genereren')
       }
 
-      // Show reset link modal
+      // Show reset link modal with email status
       setLinkModalData({
         link: result.resetLink,
         emailSubject: result.emailSubject,
@@ -203,7 +205,9 @@ export default function TeamPage() {
         emailHtml: result.emailHtml,
         memberName: name,
         memberEmail: email,
-        type: 'reset',
+        type: result.isInvite ? 'invite' : 'reset',
+        emailSent: result.emailSent,
+        emailError: result.emailError,
       })
     } catch (error) {
       console.error('Reset password error:', error)
@@ -863,8 +867,8 @@ function LinkModal({
   onClose: () => void
 }) {
   const [sending, setSending] = useState(false)
-  const [sent, setSent] = useState(false)
-  const [sendError, setSendError] = useState<string | null>(null)
+  const [sent, setSent] = useState(data.emailSent ?? false)
+  const [sendError, setSendError] = useState<string | null>(data.emailError ?? null)
 
   const isInvite = data.type === 'invite'
   const title = isInvite ? 'Teamlid uitgenodigd' : 'Wachtwoord reset'

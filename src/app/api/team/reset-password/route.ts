@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { Resend } from 'resend'
 
 // Server-side Supabase client with service role key (admin privileges)
 function getAdminClient() {
@@ -21,7 +22,7 @@ function getAdminClient() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { email, name } = body
+    const { email, name, sendEmail } = body
 
     if (!email) {
       return NextResponse.json(
@@ -119,6 +120,35 @@ Het p1Meter team`
       ? generateInviteEmailHtml(displayName, resetLink)
       : generateResetEmailHtml(displayName, resetLink)
 
+    // Send email if requested
+    let emailSent = false
+    let emailError: string | null = null
+
+    if (sendEmail) {
+      const resendApiKey = process.env.RESEND_API_KEY
+      if (!resendApiKey) {
+        emailError = 'Resend API key niet geconfigureerd'
+      } else {
+        try {
+          const resend = new Resend(resendApiKey)
+          const { error: sendError } = await resend.emails.send({
+            from: 'p1Meter <noreply@jmtest.nl>',
+            to: email,
+            subject: emailSubject,
+            html: emailHtml,
+          })
+
+          if (sendError) {
+            emailError = sendError.message
+          } else {
+            emailSent = true
+          }
+        } catch (err) {
+          emailError = err instanceof Error ? err.message : 'Onbekende fout bij versturen email'
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
       resetLink,
@@ -126,9 +156,15 @@ Het p1Meter team`
       emailBody,
       emailHtml,
       isInvite,
-      message: isInvite
-        ? `Uitnodigingslink gegenereerd voor ${email} (geen bestaand account)`
-        : `Reset link gegenereerd voor ${email}`,
+      emailSent,
+      emailError,
+      message: emailSent
+        ? isInvite
+          ? `Uitnodiging verstuurd naar ${email}`
+          : `Reset link verstuurd naar ${email}`
+        : isInvite
+          ? `Uitnodigingslink gegenereerd voor ${email} (geen bestaand account)`
+          : `Reset link gegenereerd voor ${email}`,
     })
   } catch (error) {
     console.error('Reset password error:', error)
