@@ -15,6 +15,26 @@ export default function AcceptInvitePage() {
   const [verifying, setVerifying] = useState(true)
   const [verified, setVerified] = useState(false)
   const [userName, setUserName] = useState('')
+  const [userEmail, setUserEmail] = useState('')
+
+  // Fetch team member name from database
+  async function fetchTeamMemberName(email: string) {
+    try {
+      const supabase = getSupabaseClient()
+      const { data } = await supabase
+        .from('team_members')
+        .select('name')
+        .eq('email', email)
+        .single()
+
+      const teamMember = data as { name: string } | null
+      if (teamMember?.name) {
+        setUserName(teamMember.name)
+      }
+    } catch {
+      // Ignore error, will just show email
+    }
+  }
 
   // Verify the invite token on mount
   useEffect(() => {
@@ -47,7 +67,15 @@ export default function AcceptInvitePage() {
 
           if (data.user) {
             setVerified(true)
-            setUserName(data.user.user_metadata?.name || data.user.email || '')
+            setUserEmail(data.user.email || '')
+            // Try to get name from metadata, or fetch from team_members
+            const metaName = data.user.user_metadata?.name
+            if (metaName) {
+              setUserName(metaName)
+            } else if (data.user.email) {
+              // Fetch name from team_members
+              fetchTeamMemberName(data.user.email)
+            }
           }
         }
       }
@@ -56,7 +84,13 @@ export default function AcceptInvitePage() {
       const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
         if (event === 'SIGNED_IN' && session) {
           setVerified(true)
-          setUserName(session.user.user_metadata?.name || session.user.email || '')
+          setUserEmail(session.user.email || '')
+          const metaName = session.user.user_metadata?.name
+          if (metaName) {
+            setUserName(metaName)
+          } else if (session.user.email) {
+            fetchTeamMemberName(session.user.email)
+          }
         }
       })
 
@@ -65,7 +99,13 @@ export default function AcceptInvitePage() {
       if (session) {
         // Check if user needs to set password (invited users)
         setVerified(true)
-        setUserName(session.user.user_metadata?.name || session.user.email || '')
+        setUserEmail(session.user.email || '')
+        const metaName = session.user.user_metadata?.name
+        if (metaName) {
+          setUserName(metaName)
+        } else if (session.user.email) {
+          fetchTeamMemberName(session.user.email)
+        }
       }
 
       setVerifying(false)
@@ -161,6 +201,11 @@ export default function AcceptInvitePage() {
           <h1 className="mt-4 text-2xl font-bold text-gray-900">
             Welkom{userName ? `, ${userName}` : ''}!
           </h1>
+          {userEmail && (
+            <p className="mt-1 text-sm text-gray-500">
+              ({userEmail})
+            </p>
+          )}
           <p className="mt-2 text-gray-600">
             Kies een wachtwoord om je account te activeren
           </p>
